@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Artery Stenosis</category>
+  <index>0</index>
+  <title>CreateGuideLinePython</title>
+  <description><![CDATA[Apply a Gaussian blur to an image]]></description>
+  <version>0.1.0.</version>
+  <documentation-url>https://github.com/lassoan/SlicerPythonCLIExample</documentation-url>
+  <license/>
+  <contributor>Andras Lasso (PerkLab)</contributor>
+  <acknowledgements><![CDATA[This work is part of the National Alliance for Medical Image Computing (NAMIC), funded by the National Institutes of Health through the NIH Roadmap for Medical Research, Grant U54 EB005149.]]></acknowledgements>
+  <parameters>
+    <double>
+      <name>sigma</name>
+      <label>Sigma</label>
+      <index>1</index>
+      <description><![CDATA[Sigma value in physical units (e.g., mm) of the Gaussian kernel]]></description>
+      <default>1.0</default>
+    </double>
+    <label>IO</label>
+    <description><![CDATA[Input/output parameters]]></description>
+    <image>
+      <name>inputVolume</name>
+      <label>Input Volume</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description><![CDATA[Input volume]]></description>
+    </image>
+    <pointfile type="curve" coordinateSystem="lps">
+      <name>OutputCurveFileName</name>
+      <label>Output markups curve</label>
+      <description><![CDATA[Guideline points as markups curve]]></description>
+      <longflag>curveFile</longflag>
+      <channel>output</channel>
+    </pointfile>
+    <pointfile type="curve" coordinateSystem="lps">
+      <name>OutputCurveFileName</name>
+      <label>Output markups curve</label>
+      <description><![CDATA[Guideline points as markups curve]]></description>
+      <longflag>curveFile</longflag>
+      <channel>output</channel>
+    </pointfile>
+  </parameters>
+</executable>
