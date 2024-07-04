@@ -4,6 +4,9 @@ set(MODULE_NAME StenosisCal)
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
+  ${MODULE_NAME}Lib/__init__.py
+  ${MODULE_NAME}Lib/MainLogic.py
+  ${MODULE_NAME}Lib/MyFunc.py
   )
 
 set(MODULE_PYTHON_RESOURCES

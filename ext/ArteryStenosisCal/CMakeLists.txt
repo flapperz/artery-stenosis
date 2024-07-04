@@ -1,6 +1,12 @@
-cmake_minimum_required(VERSION 3.13.4)
+cmake_minimum_required(VERSION 3.16.3...3.19.7 FATAL_ERROR)
 
-project(Artery Stenosis Stenosis Calculator)
+set(Slicer_DIR /opt/sr561/Slicer-build)
+# set(Os)
+
+find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
+
+# project(Artery Stenosis Calculator)
+project(ArteryStenosisCal)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
@@ -22,6 +28,7 @@ include(${Slicer_USE_FILE})
 add_subdirectory(StenosisCal)
 add_subdirectory(CreateGuideLinePython)
 add_subdirectory(DefaultPythonMod)
+add_subdirectory(TestCliMod)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
