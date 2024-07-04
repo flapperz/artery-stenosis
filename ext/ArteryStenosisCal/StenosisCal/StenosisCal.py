@@ -37,7 +37,7 @@ class StenosisCal(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = 'Stenosis Calculator'
         self.parent.categories = ['Artery Stenosis']
-        self.parent.dependencies = ['ExtractCenterline']
+        self.parent.dependencies = ['ExtractCenterline', 'ExtractCenterline']
         self.parent.contributors = ['Krit Cholapand (Chulalongkorn U.)']
         # TODO: update with short description of the module and a link to online module documentation
         self.parent.helpText = f"""
@@ -421,6 +421,10 @@ class StenosisCalLogic(ScriptedLoadableModuleLogic):
         startTime = time.time()
         # print(arterySeed)
         # print(inputVolume)
+        
+        # Segment
+        # Extract centerline
+        # Cross Section Analysis
 
         mainWindow = slicer.util.mainWindow()
         segmentation, segmentID = StenosisCalLib.MainLogic.MyProcess(
@@ -507,6 +511,8 @@ class StenosisCalLogic(ScriptedLoadableModuleLogic):
         centerlineCurve.SetName(
             'Centerline_curve_' + guideline.GetName()
         )
+        # ? extractcenterline not make intuitive function to run in background so we have to switch back to our ui
+        # TODO: switch back to our UI
 
         outputCenterlineCurveSelector.setCurrentNode(centerlineCurve)
         """
@@ -561,14 +567,13 @@ class StenosisCalLogic(ScriptedLoadableModuleLogic):
             self._parameterNode.outputPlot.SetName('MyPlot ' + guideline.GetName())
         outputPlotSelector.setCurrentNode(self._parameterNode.outputPlot)
 
-
         applyButton.click()
 
         slicer.app.processEvents()
-        # TODO properly select table
+        # TODO: properly calculate stenosis
         cross_sec_area = slicer.util.arrayFromTableColumn(self._parameterNode.outputTable, 'Cross-section area')
         min_area = np.min(cross_sec_area)
-        max_area = np.max(cross_sec_area)
+        max_area = np.max(cross_sec_area) # avg( max(proximal), max(distal) )
         stenosis = 1 - (min_area / max_area)
         print('min, max, stenosis')
         print(f'{min_area}, {max_area}, {stenosis*100:.3f}%')
