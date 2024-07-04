@@ -1,7 +1,10 @@
 **/.DS_Store
 data/*
-!data/.gitkeep
+# !data/.gitkeep
+data
 **/*.zip
+
+ext/*-build/
 
 # python.gitignore
 # Byte-compiled / optimized / DLL files
