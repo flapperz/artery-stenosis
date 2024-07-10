@@ -7,6 +7,7 @@ find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
 
 # project(Artery Stenosis Calculator)
 project(ArteryStenosisCal)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information

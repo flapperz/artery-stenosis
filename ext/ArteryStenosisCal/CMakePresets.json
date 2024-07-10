@@ -20,7 +20,7 @@
             "hidden": false,
             "configurePreset": "configure-ext",
             "cleanFirst": false,
-            "jobs": 5,
+            "jobs": 2,
             "targets": "all"
         }
     ],

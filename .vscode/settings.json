@@ -1,8 +1,8 @@
 {
     "python.defaultInterpreterPath": "/Applications/Slicer.app/Contents/bin/PythonSlicer",
     
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
+    "cmake.allowCommentsInPresetsFile": true,
      
     "cmake.pinnedCommands": [
         "cmake.openCMakePresets",
