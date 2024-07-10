@@ -1,0 +1,44 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "configure-ext",
+            "description": "Default settings for arteryStenosisCal extension",
+            "hidden": false,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/../ArteryStenosisCal-build",
+            "cmakeExecutable": "/usr/local/bin/cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-ext",
+            "description": "Default build for artery stenosis",
+            "hidden": false,
+            "configurePreset": "configure-ext",
+            "cleanFirst": false,
+            "jobs": 5,
+            "targets": "all"
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "build-rerun-slicer",
+            "description": "Default workflows",
+            "displayName": "",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "configure-ext"
+                },
+                {
+                    "type": "build",
+                    "name": "build-ext"
+                }
+            ]
+        }
+    ]
+}

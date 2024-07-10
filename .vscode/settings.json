@@ -1,17 +1,10 @@
 {
     "python.defaultInterpreterPath": "/Applications/Slicer.app/Contents/bin/PythonSlicer",
     
-    // "cmake.cmakePath": "/usr/local/bin/cmake",
-    // "cmake.sourceDirectory": "${workspaceFolder}/ext/ArteryStenosisCal",
-    "cmake.useCMakePresets": "always",
-
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
-    "cmake.autoSelectActiveFolder": false,
      
     "cmake.pinnedCommands": [
-        "workbench.action.tasks.configureTaskRunner",
-        "workbench.action.tasks.runTask",
         "cmake.openCMakePresets",
         "cmake.selectConfigurePreset",
         "cmake.configure"
