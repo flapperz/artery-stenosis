@@ -28,7 +28,7 @@ include(${Slicer_USE_FILE})
 add_subdirectory(StenosisCal)
 add_subdirectory(CreateGuideLinePython)
 add_subdirectory(DefaultPythonMod)
-add_subdirectory(TestCliMod)
+add_subdirectory(BVCreateGuideLine)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

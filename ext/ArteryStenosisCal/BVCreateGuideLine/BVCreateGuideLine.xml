@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>Examples</category>
+  <title>BVCreateGuideLine</title>
+  <description><![CDATA[This is a CLI module that can be bundled in an extension]]></description>
+  <version>0.0.1</version>
+  <documentation-url>https://github.com/username/project</documentation-url>
+  <license>Slicer</license>
+  <contributor>FirstName LastName (Institution), FirstName LastName (Institution)</contributor>
+  <acknowledgements>This work was partially funded by NIH grant NXNNXXNNNNNN-NNXN</acknowledgements>
+  <parameters>
+    <label>IO</label>
+    <description><![CDATA[Input/output parameters]]></description>
+    <image>
+      <name>inputVolume</name>
+      <label>Input Volume</label>
+      <channel>input</channel>
+      <!-- <index>0</index> -->
+      <flag>i</flag>
+      <description><![CDATA[Input volume]]></description>
+    </image>
+    <int-vector>
+      <name>inFlattenMarkersKJI</name>
+      <label>Serialized fiducial return</label>
+      <channel>output</channel>
+      <default>162, 198, 313, 162, 196, 317, 160, 192, 326, 159, 190, 329, 158, 188, 332, 157, 186, 334, 155, 182, 337, 153, 179, 341, 152, 175, 345</default>
+      <description><![CDATA[Return serialized markups]]></description>
+    </int-vector>
+    <int-vector>
+      <name>outFlattenGuideLineKJI</name>
+      <label>Serialized fiducial return</label>
+      <channel>output</channel>
+      <default>0, 0, 0</default>
+      <description><![CDATA[Return serialized markups]]></description>
+    </int-vector>
+  </parameters>
+</executable>
