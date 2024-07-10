@@ -11,7 +11,23 @@
   <parameters>
     <label>IO</label>
     <description><![CDATA[Input/output parameters]]></description>
-    <double>
+
+    <point multiple="true">
+      <name>inMarkups</name>
+      <label>in Markups</label>
+      <description><![CDATA[Input Markups Description]]></description>
+      <flag>i</flag>
+      <channel>input</channel>
+    </point>
+    <pointfile type="point" coordinateSystem="lps">
+      <name>outMarkupsFile</name>
+      <label>out Markups</label>
+      <description><![CDATA[Output Markups Description]]></description>
+      <longflag>outmarkupsfile</longflag>
+      <channel>output</channel>
+    </pointfile>
+
+    <!-- <double>
       <name>sigma</name>
       <longflag>sigma</longflag>
       <flag>s</flag>
@@ -32,6 +48,6 @@
       <channel>output</channel>
       <index>1</index>
       <description><![CDATA[Output Volume]]></description>
-    </image>
+    </image> -->
   </parameters>
 </executable>
