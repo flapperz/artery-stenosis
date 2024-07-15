@@ -19,9 +19,7 @@
             "description": "Default build for artery stenosis",
             "hidden": false,
             "configurePreset": "configure-ext",
-            "cleanFirst": false,
-            "jobs": 2,
-            "targets": "all"
+            "jobs": 4
         }
     ],
     "workflowPresets": [
