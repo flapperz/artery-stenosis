@@ -5,7 +5,12 @@ set(MODULE_NAME BVStenosisMeasurement)
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
   )
+# Collect all Python scripts in the ${MODULE_NAME}Lib directory
+file(GLOB MODULE_LIB_PYTHON_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}Lib/*.py")
+foreach(python_script ${MODULE_LIB_PYTHON_SCRIPTS})
+  list(APPEND MODULE_PYTHON_SCRIPTS ${python_script})
 
+endforeach()
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
