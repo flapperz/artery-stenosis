@@ -6,8 +6,6 @@ import numpy as np
 import qt
 import slicer
 import slicer.util
-import StenosisCalLib
-import StenosisCalLib.MainLogic
 import vtk
 from slicer.parameterNodeWrapper import WithinRange, parameterNodeWrapper
 from slicer.ScriptedLoadableModule import (
@@ -19,7 +17,11 @@ from slicer.ScriptedLoadableModule import (
 )
 from slicer.util import VTKObservationMixin
 
-reload(StenosisCalLib.MainLogic)
+# import StenosisCalLib
+# import StenosisCalLib.MainLogic as MainLogic
+from StenosisCalLib import MainLogic, MyFunc
+
+reload(MainLogic)
 
 #
 # StenosisCal
@@ -422,161 +424,198 @@ class StenosisCalLogic(ScriptedLoadableModuleLogic):
         # print(arterySeed)
         # print(inputVolume)
         
-        # Segment
-        # Extract centerline
-        # Cross Section Analysis
+        
+        weight_arr = slicer.util.arrayFromVolume(inputVolume).copy()
+        COST_OFFSET = -50
+        weight_arr[weight_arr > COST_OFFSET] = 2_000_000_000
+        weight_arr[weight_arr <= COST_OFFSET] += 4000
+        seed = (204, 160, 307)
+        end_node = (190, 159, 329)
+        ijk_spacing = inputVolume.GetSpacing()
+        kernel_ras_distance = np.zeros((3, 3, 3), dtype=np.float64)
+        for pos_k in range(-1, 2):
+            for pos_j in range(-1, 2):
+                for pos_i in range(-1, 2):
+                    kernel_ras_distance[pos_k + 1, pos_j + 1, pos_i + 1] = (
+                        (pos_i * ijk_spacing[0]) ** 2
+                        + (pos_j * ijk_spacing[1]) ** 2
+                        + (pos_k * ijk_spacing[2]) ** 2
+                    ) ** 0.5
+        sub_path, _ = MyFunc.dijkstra(seed, end_node, weight_arr, kernel_ras_distance)
+        
 
-        mainWindow = slicer.util.mainWindow()
-        segmentation, segmentID = StenosisCalLib.MainLogic.MyProcess(
-            inputVolume, arterySeed, guideline, segment
-        )
+        # segmentation, segmentID = MainLogic.MyProcess(
+        #     inputVolume, arterySeed, guideline, segment
+        # )
 
-        # ---------- Extract centerlines ----------
-        slicer.app.processEvents()
-        mainWindow.moduleSelector().selectModule('ExtractCenterline')
-        if not self._extractCenterlineWidgets:
-            self._extractCenterlineWidgets = ExtractCenterlineWidgets()
-            self._extractCenterlineWidgets.findWidgets()
+        # x = vtk.vtkMatrix4x4()
+        # inputVolume.GetRASToIJKMatrix(x)
+        # ras2ijk_mat = MainLogic.vtk4x4matrix_to_numpy(x)
 
-        inputSurfaceComboBox = self._extractCenterlineWidgets.inputSurfaceComboBox
-        inputSegmentSelectorWidget = (
-            self._extractCenterlineWidgets.inputSegmentSelectorWidget
-        )
-        endPointsMarkupsSelector = (
-            self._extractCenterlineWidgets.endPointsMarkupsSelector
-        )
-        outputCenterlineModelSelector = (
-            self._extractCenterlineWidgets.outputCenterlineModelSelector
-        )
-        outputCenterlineCurveSelector = (
-            self._extractCenterlineWidgets.outputCenterlineCurveSelector
-        )
-        preprocessInputSurfaceModelCheckBox = (
-            self._extractCenterlineWidgets.preprocessInputSurfaceModelCheckBox
-        )
-        applyButton = self._extractCenterlineWidgets.applyButton
+        # num_fid = arterySeed.GetNumberOfControlPoints()
+        # control_points_label2kji_map = {
+        #     arterySeed.GetNthControlPointLabel(i): np.array(
+        #         MainLogic.get_fiducial_as_kji(arterySeed, i, ras2ijk_mat)
+        #     )
+        #     for i in range(num_fid)
+        # }
+        # print(control_points_label2kji_map)
+        # print(segmentID)
 
-        # Set input segmentation
-        inputSurfaceComboBox.setCurrentNode(segmentation)
-        inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
-        # Create 2 fiducial endpoints, at start and end of input curve. We call it output because it is not user input.
-        outputFiducialNode = self._parameterNode.outputFiducialNode
-        if not outputFiducialNode:
-            outputFiducialNode = slicer.mrmlScene.AddNewNodeByClass(
-                'vtkMRMLMarkupsFiducialNode'
-            )
-            # Visually identify the segment by the input fiducial name
-            outputFiducialNode.SetName('Endpoints_' + guideline.GetName())
-            firstInputCurveControlPoint = guideline.GetNthControlPointPositionVector(0)
-            outputFiducialNode.AddControlPointWorld(firstInputCurveControlPoint)
-            endPointsMarkupsSelector.setCurrentNode(outputFiducialNode)
-            curveControlPoints = vtk.vtkPoints()
-            guideline.GetControlPointPositionsWorld(curveControlPoints)
-            lastInputCurveControlPoint = guideline.GetNthControlPointPositionVector(
-                curveControlPoints.GetNumberOfPoints() - 1
-            )
-            outputFiducialNode.AddControlPointWorld(lastInputCurveControlPoint)
-            endPointsMarkupsSelector.setCurrentNode(outputFiducialNode)
-            self._parameterNode.outputFiducialNode = outputFiducialNode
-        # Account for rename. Control points are not remaned though.
-        outputFiducialNode.SetName('Endpoints_' + guideline.GetName())
-        # Output centerline model. A single node throughout.
+        print('time take:', time.time() - startTime)
 
-        centerlineModel = self._parameterNode.outputCenterlineModel
-        if not centerlineModel:
-            centerlineModel = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-            # Visually identify the segment by the input fiducial name
-            centerlineModel.SetName(
-                'Centerline_model_' + guideline.GetName()
-            )
-            self._parameterNode.outputCenterlineModel = centerlineModel
-        # Account for rename
-        centerlineModel.SetName(
-            'Centerline_model_' + guideline.GetName()
-        )
-        outputCenterlineModelSelector.setCurrentNode(centerlineModel)
+        return
+        # mainWindow = slicer.util.mainWindow()
+        # segmentation, segmentID = StenosisCalLib.MainLogic.MyProcess(
+        #     inputVolume, arterySeed, guideline, segment
+        # )
 
-        # Output centerline curve. A single node throughout.
-        centerlineCurve = self._parameterNode.outputCenterlineCurve
-        if not centerlineCurve:
-            centerlineCurve = slicer.mrmlScene.AddNewNodeByClass(
-                'vtkMRMLMarkupsCurveNode'
-            )
-            # Visually identify the segment by the input fiducial name
-            centerlineCurve.SetName(
-                'Centerline_curve_' + guideline.GetName()
-            )
-            self._parameterNode.outputCenterlineCurve = centerlineCurve
-        # Account for rename
-        centerlineCurve.SetName(
-            'Centerline_curve_' + guideline.GetName()
-        )
-        # ? extractcenterline not make intuitive function to run in background so we have to switch back to our ui
-        # TODO: switch back to our UI
+        # # ---------- Extract centerlines ----------
+        # slicer.app.processEvents()
+        # mainWindow.moduleSelector().selectModule('ExtractCenterline')
+        # if not self._extractCenterlineWidgets:
+        #     self._extractCenterlineWidgets = ExtractCenterlineWidgets()
+        #     self._extractCenterlineWidgets.findWidgets()
 
-        outputCenterlineCurveSelector.setCurrentNode(centerlineCurve)
-        """
-        Don't preprocess input surface. Decimation error may crash Slicer. Quadric method for decimation is slower but more reliable.
-        """
-        preprocessInputSurfaceModelCheckBox.setChecked(False)
-        # Apply
-        applyButton.click()
-        # Hide the input curve to show the centerlines
-        guideline.SetDisplayVisibility(False)
-        # Close network pane; we don't use this here.
-        self._extractCenterlineWidgets.outputNetworkGroupBox.collapsed = True
+        # inputSurfaceComboBox = self._extractCenterlineWidgets.inputSurfaceComboBox
+        # inputSegmentSelectorWidget = (
+        #     self._extractCenterlineWidgets.inputSegmentSelectorWidget
+        # )
+        # endPointsMarkupsSelector = (
+        #     self._extractCenterlineWidgets.endPointsMarkupsSelector
+        # )
+        # outputCenterlineModelSelector = (
+        #     self._extractCenterlineWidgets.outputCenterlineModelSelector
+        # )
+        # outputCenterlineCurveSelector = (
+        #     self._extractCenterlineWidgets.outputCenterlineCurveSelector
+        # )
+        # preprocessInputSurfaceModelCheckBox = (
+        #     self._extractCenterlineWidgets.preprocessInputSurfaceModelCheckBox
+        # )
+        # applyButton = self._extractCenterlineWidgets.applyButton
 
-        stopTime = time.time()
-        durationValue = '%.2f' % (stopTime - startTime)
-        message = f'Processing completed in {durationValue} seconds'
-        logging.info(message)
-        slicer.util.showStatusMessage(message, 5000)
+        # # Set input segmentation
+        # inputSurfaceComboBox.setCurrentNode(segmentation)
+        # inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
+        # # Create 2 fiducial endpoints, at start and end of input curve. We call it output because it is not user input.
+        # outputFiducialNode = self._parameterNode.outputFiducialNode
+        # if not outputFiducialNode:
+        #     outputFiducialNode = slicer.mrmlScene.AddNewNodeByClass(
+        #         'vtkMRMLMarkupsFiducialNode'
+        #     )
+        #     # Visually identify the segment by the input fiducial name
+        #     outputFiducialNode.SetName('Endpoints_' + guideline.GetName())
+        #     firstInputCurveControlPoint = guideline.GetNthControlPointPositionVector(0)
+        #     outputFiducialNode.AddControlPointWorld(firstInputCurveControlPoint)
+        #     endPointsMarkupsSelector.setCurrentNode(outputFiducialNode)
+        #     curveControlPoints = vtk.vtkPoints()
+        #     guideline.GetControlPointPositionsWorld(curveControlPoints)
+        #     lastInputCurveControlPoint = guideline.GetNthControlPointPositionVector(
+        #         curveControlPoints.GetNumberOfPoints() - 1
+        #     )
+        #     outputFiducialNode.AddControlPointWorld(lastInputCurveControlPoint)
+        #     endPointsMarkupsSelector.setCurrentNode(outputFiducialNode)
+        #     self._parameterNode.outputFiducialNode = outputFiducialNode
+        # # Account for rename. Control points are not remaned though.
+        # outputFiducialNode.SetName('Endpoints_' + guideline.GetName())
+        # # Output centerline model. A single node throughout.
 
-        #---------- Cross-Section Analysis ----------
-        slicer.app.processEvents()
-        mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
-        slicer.app.processEvents()
+        # centerlineModel = self._parameterNode.outputCenterlineModel
+        # if not centerlineModel:
+        #     centerlineModel = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        #     # Visually identify the segment by the input fiducial name
+        #     centerlineModel.SetName(
+        #         'Centerline_model_' + guideline.GetName()
+        #     )
+        #     self._parameterNode.outputCenterlineModel = centerlineModel
+        # # Account for rename
+        # centerlineModel.SetName(
+        #     'Centerline_model_' + guideline.GetName()
+        # )
+        # outputCenterlineModelSelector.setCurrentNode(centerlineModel)
 
-        if not self._csaWidgets:
-            self._csaWidgets = CrossSectionAnalysisWidgets()
-            self._csaWidgets.findWidgets()
+        # # Output centerline curve. A single node throughout.
+        # centerlineCurve = self._parameterNode.outputCenterlineCurve
+        # if not centerlineCurve:
+        #     centerlineCurve = slicer.mrmlScene.AddNewNodeByClass(
+        #         'vtkMRMLMarkupsCurveNode'
+        #     )
+        #     # Visually identify the segment by the input fiducial name
+        #     centerlineCurve.SetName(
+        #         'Centerline_curve_' + guideline.GetName()
+        #     )
+        #     self._parameterNode.outputCenterlineCurve = centerlineCurve
+        # # Account for rename
+        # centerlineCurve.SetName(
+        #     'Centerline_curve_' + guideline.GetName()
+        # )
+        # # ? extractcenterline not make intuitive function to run in background so we have to switch back to our ui
+        # # TODO: switch back to our UI
 
-        applyButton = self._csaWidgets.applyButton
-        inputCenterlineSelector = self._csaWidgets.inputCenterlineSelector
-        inputSurfaceComboBox = self._csaWidgets.inputSurfaceComboBox
-        inputSegmentSelectorWidget = self._csaWidgets.inputSegmentSelectorWidget
-        outputTableSelector = self._csaWidgets.outputTableSelector
-        outputPlotSelector = self._csaWidgets.outputPlotSelector
+        # outputCenterlineCurveSelector.setCurrentNode(centerlineCurve)
+        # """
+        # Don't preprocess input surface. Decimation error may crash Slicer. Quadric method for decimation is slower but more reliable.
+        # """
+        # preprocessInputSurfaceModelCheckBox.setChecked(False)
+        # # Apply
+        # applyButton.click()
+        # # Hide the input curve to show the centerlines
+        # guideline.SetDisplayVisibility(False)
+        # # Close network pane; we don't use this here.
+        # self._extractCenterlineWidgets.outputNetworkGroupBox.collapsed = True
 
-        inputCenterlineSelector.setCurrentNode(centerlineCurve)
-        inputSurfaceComboBox.setCurrentNode(segmentation)
-        inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
+        # stopTime = time.time()
+        # durationValue = '%.2f' % (stopTime - startTime)
+        # message = f'Processing completed in {durationValue} seconds'
+        # logging.info(message)
+        # slicer.util.showStatusMessage(message, 5000)
 
-        if not self._parameterNode.outputTable:
-            self._parameterNode.outputTable = slicer.mrmlScene.AddNewNodeByClass(
-                'vtkMRMLTableNode'
-            )
-            # Visually identify the segment by the input fiducial name
-            self._parameterNode.outputTable.SetName('MyTable ' + guideline.GetName())
-        outputTableSelector.setCurrentNode(self._parameterNode.outputTable)
+        # #---------- Cross-Section Analysis ----------
+        # slicer.app.processEvents()
+        # mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
+        # slicer.app.processEvents()
 
-        if not self._parameterNode.outputPlot:
-            self._parameterNode.outputPlot = slicer.mrmlScene.AddNewNodeByClass(
-                'vtkMRMLPlotSeriesNode'
-            )
-            self._parameterNode.outputPlot.SetName('MyPlot ' + guideline.GetName())
-        outputPlotSelector.setCurrentNode(self._parameterNode.outputPlot)
+        # if not self._csaWidgets:
+        #     self._csaWidgets = CrossSectionAnalysisWidgets()
+        #     self._csaWidgets.findWidgets()
 
-        applyButton.click()
+        # applyButton = self._csaWidgets.applyButton
+        # inputCenterlineSelector = self._csaWidgets.inputCenterlineSelector
+        # inputSurfaceComboBox = self._csaWidgets.inputSurfaceComboBox
+        # inputSegmentSelectorWidget = self._csaWidgets.inputSegmentSelectorWidget
+        # outputTableSelector = self._csaWidgets.outputTableSelector
+        # outputPlotSelector = self._csaWidgets.outputPlotSelector
 
-        slicer.app.processEvents()
-        # TODO: properly calculate stenosis
-        cross_sec_area = slicer.util.arrayFromTableColumn(self._parameterNode.outputTable, 'Cross-section area')
-        min_area = np.min(cross_sec_area)
-        max_area = np.max(cross_sec_area) # avg( max(proximal), max(distal) )
-        stenosis = 1 - (min_area / max_area)
-        print('min, max, stenosis')
-        print(f'{min_area}, {max_area}, {stenosis*100:.3f}%')
+        # inputCenterlineSelector.setCurrentNode(centerlineCurve)
+        # inputSurfaceComboBox.setCurrentNode(segmentation)
+        # inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
+
+        # if not self._parameterNode.outputTable:
+        #     self._parameterNode.outputTable = slicer.mrmlScene.AddNewNodeByClass(
+        #         'vtkMRMLTableNode'
+        #     )
+        #     # Visually identify the segment by the input fiducial name
+        #     self._parameterNode.outputTable.SetName('MyTable ' + guideline.GetName())
+        # outputTableSelector.setCurrentNode(self._parameterNode.outputTable)
+
+        # if not self._parameterNode.outputPlot:
+        #     self._parameterNode.outputPlot = slicer.mrmlScene.AddNewNodeByClass(
+        #         'vtkMRMLPlotSeriesNode'
+        #     )
+        #     self._parameterNode.outputPlot.SetName('MyPlot ' + guideline.GetName())
+        # outputPlotSelector.setCurrentNode(self._parameterNode.outputPlot)
+
+        # applyButton.click()
+
+        # slicer.app.processEvents()
+        # # TODO: properly calculate stenosis
+        # cross_sec_area = slicer.util.arrayFromTableColumn(self._parameterNode.outputTable, 'Cross-section area')
+        # min_area = np.min(cross_sec_area)
+        # max_area = np.max(cross_sec_area) # avg( max(proximal), max(distal) )
+        # stenosis = 1 - (min_area / max_area)
+        # print('min, max, stenosis')
+        # print(f'{min_area}, {max_area}, {stenosis*100:.3f}%')
 
 
 
