@@ -1,8 +1,8 @@
 {
     "python.defaultInterpreterPath": "/Applications/Slicer.app/Contents/bin/PythonSlicer",
     
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
+    "cmake.allowCommentsInPresetsFile": true,
      
     "cmake.pinnedCommands": [
         "cmake.openCMakePresets",
@@ -11,6 +11,13 @@
     ],
     "files.associations": {
         "iostream": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "iterator": "cpp",
+        "memory": "cpp",
+        "type_traits": "cpp",
+        "queue": "cpp",
+        "algorithm": "cpp",
+        "core": "cpp",
+        "geometry": "cpp"
     }
 }
