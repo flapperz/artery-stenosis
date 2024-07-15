@@ -29,25 +29,23 @@ class BVStenosisMeasurement(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("BVStenosisMeasurement")  # TODO: make this more human readable by adding spaces
-        # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
-        # TODO: update with short description of the module and a link to online module documentation
-        # _() function marks text as translatable to other languages
-        self.parent.helpText = _("""
-This is an example of scripted loadable module bundled in an extension.
-See more information in <a href="https://github.com/organization/projectname#BVStenosisMeasurement">module documentation</a>.
-""")
+        self.version = 3.0
+        self.parent.title = 'BV Stenosis Measurement'
+        self.parent.categories = ['Chula BV']
+        self.parent.dependencies = ['BVCreateGuideLine']
+        self.parent.contributors = ['John Doe (AnyWare Corp.)']
+        self.parent.helpText = f"""
+    Artery Stenosis Measurement version {self.version}. Documentation is available
+    <a href="https://github.com/flapperz/artery-stenosis">here</a>.
+    """
         # TODO: replace with organization, grant and thanks
-        self.parent.acknowledgementText = _("""
+        self.parent.acknowledgementText = """
 This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
 and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
-""")
+"""
 
         # Additional initialization step after application startup is complete
-        slicer.app.connect("startupCompleted()", registerSampleData)
+        # slicer.app.connect("startupCompleted()", registerSampleData)
 
 
 #
