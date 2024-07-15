@@ -15,6 +15,7 @@
         "iterator": "cpp",
         "memory": "cpp",
         "type_traits": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "algorithm": "cpp"
     }
 }
