@@ -45,52 +45,10 @@ namespace
     return result;
   }
   
-
-  template <typename TPixel>
-  int DoIt(int argc, char *argv[], TPixel tpixelVal)
+  template <typename TImage>
+  std::vector<Index3Type> Dijkstra(Index3Type seed, Index3Type dest, typename TImage::Pointer image)
   {
-    PARSE_ARGS;
-    
-    std::cout << typeid(TPixel).name() << std::endl;
-    
-    std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
-    for (auto &x : markers)
-      std::cout << x << std::endl;
-
-    std::string flattenMarkersStr = FlattenFiducials(markers);
-    
-    std::ofstream rts;
-    rts.open(returnParameterFile.c_str());
-
-    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
-    rts.close();
-
-    const unsigned int Dimension = 3;
-
-    typedef itk::Image<TPixel, Dimension> ImageType;
-    typedef itk::ImageFileReader<ImageType> ReaderType;
-
-    typename ReaderType::Pointer reader = ReaderType::New();
-    typename ImageType::Pointer image;
-
-    reader->SetFileName(inputVolume.c_str());
-    reader->Update();
-    image = reader->GetOutput();
-
-    
-    typename ImageType::RegionType region = image->GetLargestPossibleRegion();
-    typename ImageType::SizeType imageSize = region.GetSize();
-    std::cout << "size" << imageSize << std::endl;
-
-
-    Index3Type seed{{307, 204, 160}};
-    Index3Type target{{329, 190, 159}};
-    
-    // Get pixel value example
-    // typename ImageType::IndexType pixelIndex{{334, 186, 157}};
-    // Index3Type pixelIndex{{334, 186, 157}};
-    // typename ImageType::PixelType pixelValue = image->GetPixel(pixelIndex);
-    // std::cout << pixelValue << std::endl;
+    typedef TImage ImageType;
 
     typedef std::pair<double, Index3Type> qItemType;
     // std::set<qItemType, std::vector<qItemType>, tupleGreater<double, Index3Type>> pq;
@@ -116,7 +74,7 @@ namespace
       double u_dist = u_pair.first;
       Index3Type u_idx = u_pair.second;
       
-      if (u_idx == target)
+      if (u_idx == dest)
       {
         is_reach = true;
         break;
@@ -160,11 +118,11 @@ namespace
     std::cout << "it: " << it << std::endl;
     
     if (! is_reach)
-      return EXIT_FAILURE;
+      return {{0,0,0}};
 
     it = 0;
     // crawl
-    Index3Type crawler = target;
+    Index3Type crawler = dest;
     Index3Type parent;
     std::vector<Index3Type> path;
     while (pred_map.find(crawler) != pred_map.end() && it < 512 + 275 + 512)
@@ -174,6 +132,58 @@ namespace
       path.push_back(parent);
       crawler = parent;
     }
+
+    return path;
+  }
+
+  template <typename TPixel>
+  int DoIt(int argc, char *argv[], TPixel tpixelVal)
+  {
+    PARSE_ARGS;
+    
+    std::cout << typeid(TPixel).name() << std::endl;
+    
+    std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
+    for (auto &x : markers)
+      std::cout << x << std::endl;
+
+    std::string flattenMarkersStr = FlattenFiducials(markers);
+    
+    std::ofstream rts;
+    rts.open(returnParameterFile.c_str());
+
+    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
+    rts.close();
+
+    const unsigned int Dimension = 3;
+
+    typedef itk::Image<TPixel, Dimension> ImageType;
+    typedef itk::ImageFileReader<ImageType> ReaderType;
+
+    typename ReaderType::Pointer reader = ReaderType::New();
+    typename ImageType::Pointer image;
+
+    reader->SetFileName(inputVolume.c_str());
+    reader->Update();
+    image = reader->GetOutput();
+
+    
+    typename ImageType::RegionType region = image->GetLargestPossibleRegion();
+    typename ImageType::SizeType imageSize = region.GetSize();
+    std::cout << "size" << imageSize << std::endl;
+
+
+    Index3Type seed{{307, 204, 160}};
+    Index3Type target{{329, 190, 159}};
+    
+    auto path = Dijkstra<ImageType>(seed, target, image);
+    
+    // Get pixel value example
+    // typename ImageType::IndexType pixelIndex{{334, 186, 157}};
+    // Index3Type pixelIndex{{334, 186, 157}};
+    // typename ImageType::PixelType pixelValue = image->GetPixel(pixelIndex);
+    // std::cout << pixelValue << std::endl;
+
     
     std::cout << path.size() << std::endl;
     
