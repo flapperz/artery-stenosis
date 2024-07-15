@@ -12,28 +12,74 @@
 
 namespace
 {
+  typedef itk::Index<3> Index3Type;
+
+  std::vector<Index3Type> ParseFiducials(std::vector<int> raw)
+  {
+    std::vector<Index3Type> result;
+
+    if (!raw.size() || raw.size() % 3 != 0)
+      return result;
+
+    for (int i=0; i<raw.size(); i+=3)
+      result.push_back({raw[i+2], raw[i+1], raw[i]});
+
+    return result;
+  }
+  
+  std::string FlattenFiducials(std::vector<Index3Type> markers)
+  {
+    std::string result;
+
+    if (!markers.size())
+      return result;
+
+    for (auto& e: markers)
+    {
+      result+=std::to_string(e[2])+",";
+      result+=std::to_string(e[1])+",";
+      result+=std::to_string(e[0])+",";
+    }
+    result.pop_back();
+
+    return result;
+  }
+  
+
   template <typename TPixel>
-  int DoIt(int argc, char *argv[], TPixel)
+  int DoIt(int argc, char *argv[], TPixel tpixelVal)
   {
     PARSE_ARGS;
+    
+    std::cout << typeid(TPixel).name() << std::endl;
+    
+    std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
+    for (auto &x : markers)
+      std::cout << x << std::endl;
+
+    std::string flattenMarkersStr = FlattenFiducials(markers);
+    
+    std::ofstream rts;
+    rts.open(returnParameterFile.c_str());
+
+    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
+    rts.close();
 
     const unsigned int Dimension = 3;
 
-    typedef TPixel InputPixelType;
-    typedef itk::Image<InputPixelType, Dimension> InputImageType;
-    typedef itk::ImageFileReader<InputImageType> ReaderType;
+    typedef itk::Image<TPixel, Dimension> ImageType;
+    typedef itk::ImageFileReader<ImageType> ReaderType;
 
     typename ReaderType::Pointer reader = ReaderType::New();
-    typename InputImageType::Pointer image;
+    typename ImageType::Pointer image;
 
     reader->SetFileName(inputVolume.c_str());
     reader->Update();
     image = reader->GetOutput();
 
-    typedef itk::Index<3> Index3Type;
     
-    typename InputImageType::RegionType region = image->GetLargestPossibleRegion();
-    typename InputImageType::SizeType imageSize = region.GetSize();
+    typename ImageType::RegionType region = image->GetLargestPossibleRegion();
+    typename ImageType::SizeType imageSize = region.GetSize();
     std::cout << "size" << imageSize << std::endl;
 
 
@@ -41,9 +87,9 @@ namespace
     Index3Type target{{329, 190, 159}};
     
     // Get pixel value example
-    // typename InputImageType::IndexType pixelIndex{{334, 186, 157}};
+    // typename ImageType::IndexType pixelIndex{{334, 186, 157}};
     // Index3Type pixelIndex{{334, 186, 157}};
-    // typename InputImageType::PixelType pixelValue = image->GetPixel(pixelIndex);
+    // typename ImageType::PixelType pixelValue = image->GetPixel(pixelIndex);
     // std::cout << pixelValue << std::endl;
 
     typedef std::pair<double, Index3Type> qItemType;
@@ -82,9 +128,7 @@ namespace
         continue;
       }
       for (auto const& vi: {-1, 0, 1})
-      {
         for (auto const &vj : {-1, 0, 1})
-        {
           for (auto const &vk : {-1, 0, 1})
           {
             if (vi == 0 && vj == 0 && vk == 0)
@@ -111,8 +155,6 @@ namespace
               // std::cout << "in here" << pq.size() << std::endl;
             }
           }
-        }
-      }
     }
     
     std::cout << "it: " << it << std::endl;
@@ -157,6 +199,8 @@ int main(int argc, char *argv[])
 
     // This filter handles all types on input, but only produces
     // signed types
+    std::cout << "the type isssss" << std::endl;
+    std::cout << componentType << std::endl;
     switch (componentType)
     {
     case itk::ImageIOBase::UCHAR:
@@ -175,6 +219,7 @@ int main(int argc, char *argv[])
       return DoIt(argc, argv, static_cast<unsigned int>(0));
       break;
     case itk::ImageIOBase::INT:
+      std::cout << "I'm fucked here bitch" << std::endl;
       return DoIt(argc, argv, static_cast<int>(0));
       break;
     case itk::ImageIOBase::ULONG:
@@ -206,9 +251,7 @@ int main(int argc, char *argv[])
     return EXIT_FAILURE;
   }
 
-  // std::ofstream rts;
-  // rts.open(returnParameterFile.c_str());
-  // rts << "flattenFiducials = 0.5,0.6,0.7" << std::endl;
+
 
   return EXIT_SUCCESS;
 }

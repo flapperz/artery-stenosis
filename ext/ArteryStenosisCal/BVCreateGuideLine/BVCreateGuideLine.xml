@@ -32,7 +32,6 @@
       <label>Serialized fiducial return</label>
       <channel>output</channel>
       <default>0, 0, 0</default>
-      <longflag>outMarkers</longflag>
       <description><![CDATA[Return serialized markups]]></description>
     </integer-vector>
   </parameters>
