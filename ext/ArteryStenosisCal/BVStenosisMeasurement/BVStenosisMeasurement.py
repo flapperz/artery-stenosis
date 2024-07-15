@@ -96,7 +96,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/BVStenosisMeasurement.ui"))
+        uiWidget = slicer.util.loadUI(self.resourcePath('UI/BVStenosisMeasurement.ui'))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -112,11 +112,15 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # Connections
 
         # These connections ensure that we update parameter node when scene is closed
-        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
-        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+        self.addObserver(
+            slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose
+        )
+        self.addObserver(
+            slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose
+        )
 
         # Buttons
-        self.ui.applyButton.connect("clicked(bool)", self.onApplyButton)
+        self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -136,7 +140,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self._parameterNodeGuiTag = None
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self.removeObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
+            )
 
     def onSceneStartClose(self, caller, event) -> None:
         """Called just before the scene is closed."""
@@ -158,11 +164,15 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         # Select default input nodes if nothing is selected yet to save a few clicks for the user
         if not self._parameterNode.inputVolume:
-            firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
+            firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass(
+                'vtkMRMLScalarVolumeNode'
+            )
             if firstVolumeNode:
                 self._parameterNode.inputVolume = firstVolumeNode
 
-    def setParameterNode(self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]) -> None:
+    def setParameterNode(
+        self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]
+    ) -> None:
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
@@ -170,35 +180,54 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self.removeObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
+            )
         self._parameterNode = inputParameterNode
         if self._parameterNode:
             # Note: in the .ui file, a Qt dynamic property called "SlicerParameterName" is set on each
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
-            self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self.addObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
+            )
             self._checkCanApply()
 
     def _checkCanApply(self, caller=None, event=None) -> None:
-        if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.thresholdedVolume:
-            self.ui.applyButton.toolTip = _("Compute output volume")
+        if (
+            self._parameterNode
+            and self._parameterNode.inputVolume
+            and self._parameterNode.thresholdedVolume
+        ):
+            self.ui.applyButton.toolTip = _('Compute output volume')
             self.ui.applyButton.enabled = True
         else:
-            self.ui.applyButton.toolTip = _("Select input and output volume nodes")
+            self.ui.applyButton.toolTip = _('Select input and output volume nodes')
             self.ui.applyButton.enabled = False
 
     def onApplyButton(self) -> None:
         """Run processing when user clicks "Apply" button."""
-        with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
+        with slicer.util.tryWithErrorDisplay(
+            _('Failed to compute results.'), waitCursor=True
+        ):
             # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(), self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value, self.ui.invertOutputCheckBox.checked)
+            self.logic.process(
+                self.ui.inputSelector.currentNode(),
+                self.ui.outputSelector.currentNode(),
+                self.ui.imageThresholdSliderWidget.value,
+                self.ui.invertOutputCheckBox.checked,
+            )
 
             # Compute inverted output (if needed)
             if self.ui.invertedOutputSelector.currentNode():
                 # If additional output volume is selected then result with inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
+                self.logic.process(
+                    self.ui.inputSelector.currentNode(),
+                    self.ui.invertedOutputSelector.currentNode(),
+                    self.ui.imageThresholdSliderWidget.value,
+                    not self.ui.invertOutputCheckBox.checked,
+                    showResult=False,
+                )
 
 
 #
@@ -223,12 +252,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
     def getParameterNode(self):
         return BVStenosisMeasurementParameterNode(super().getParameterNode())
 
-    def process(self,
-                inputVolume: vtkMRMLScalarVolumeNode,
-                outputVolume: vtkMRMLScalarVolumeNode,
-                imageThreshold: float,
-                invert: bool = False,
-                showResult: bool = True) -> None:
+    def process(
+        self,
+        inputVolume: vtkMRMLScalarVolumeNode,
+        outputVolume: vtkMRMLScalarVolumeNode,
+        imageThreshold: float,
+        invert: bool = False,
+        showResult: bool = True,
+    ) -> None:
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -240,26 +271,32 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         """
 
         if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+            raise ValueError('Input or output volume is invalid')
 
         import time
 
         startTime = time.time()
-        logging.info("Processing started")
+        logging.info('Processing started')
 
         # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
         cliParams = {
-            "InputVolume": inputVolume.GetID(),
-            "OutputVolume": outputVolume.GetID(),
-            "ThresholdValue": imageThreshold,
-            "ThresholdType": "Above" if invert else "Below",
+            'InputVolume': inputVolume.GetID(),
+            'OutputVolume': outputVolume.GetID(),
+            'ThresholdValue': imageThreshold,
+            'ThresholdType': 'Above' if invert else 'Below',
         }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
+        cliNode = slicer.cli.run(
+            slicer.modules.thresholdscalarvolume,
+            None,
+            cliParams,
+            wait_for_completion=True,
+            update_display=showResult,
+        )
         # We don't need the CLI module node anymore, remove it to not clutter the scene with it
         slicer.mrmlScene.RemoveNode(cliNode)
 
         stopTime = time.time()
-        logging.info(f"Processing completed in {stopTime-startTime:.2f} seconds")
+        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
 
 
 #
@@ -295,21 +332,21 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         your test should break so they know that the feature is needed.
         """
 
-        self.delayDisplay("Starting the test")
+        self.delayDisplay('Starting the test')
 
         # Get/create input data
 
         import SampleData
 
         registerSampleData()
-        inputVolume = SampleData.downloadSample("BVStenosisMeasurement1")
-        self.delayDisplay("Loaded test data set")
+        inputVolume = SampleData.downloadSample('BVStenosisMeasurement1')
+        self.delayDisplay('Loaded test data set')
 
         inputScalarRange = inputVolume.GetImageData().GetScalarRange()
         self.assertEqual(inputScalarRange[0], 0)
         self.assertEqual(inputScalarRange[1], 695)
 
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         threshold = 100
 
         # Test the module logic
@@ -328,4 +365,4 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         self.assertEqual(outputScalarRange[0], inputScalarRange[0])
         self.assertEqual(outputScalarRange[1], inputScalarRange[1])
 
-        self.delayDisplay("Test passed")
+        self.delayDisplay('Test passed')
