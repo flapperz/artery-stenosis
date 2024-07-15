@@ -2,20 +2,20 @@ import logging
 import os
 from typing import Annotated, Optional
 
-import vtk
-
 import slicer
-from slicer.i18n import tr as _
-from slicer.i18n import translate
-from slicer.ScriptedLoadableModule import *
-from slicer.util import VTKObservationMixin
-from slicer.parameterNodeWrapper import (
-    parameterNodeWrapper,
-    WithinRange,
-)
-
+import vtk
 from slicer import vtkMRMLScalarVolumeNode
-
+from slicer.parameterNodeWrapper import (
+    WithinRange,
+    parameterNodeWrapper,
+)
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
+from slicer.util import VTKObservationMixin
 
 #
 # BVStenosisMeasurement
