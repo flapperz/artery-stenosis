@@ -11,6 +11,10 @@
     ],
     "files.associations": {
         "iostream": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "iterator": "cpp",
+        "memory": "cpp",
+        "type_traits": "cpp",
+        "queue": "cpp"
     }
 }
