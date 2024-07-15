@@ -88,7 +88,7 @@ namespace
       
       if (dist_map.find(u_idx) != dist_map.end() && u_dist > dist_map[u_idx])
       {
-        std::cout << "In here too wtf!!!" << std::endl;
+        DEBUG_MSG("In here too wtf!!!");
         continue;
       }
       for (auto const& vi: {-1, 0, 1})
@@ -147,16 +147,13 @@ namespace
     PARSE_ARGS;
     
     std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
-    for (auto &x : markers)
-      std::cout << x << std::endl;
-
-    std::string flattenMarkersStr = FlattenFiducials(markers);
+    if (markers.size() < 2)
+    {
+      // TODO: better handling this case
+      std::cerr << "input have less than 2 point markers" << std::endl;
+      return EXIT_FAILURE;
+    }
     
-    std::ofstream rts;
-    rts.open(returnParameterFile.c_str());
-
-    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
-    rts.close();
 
     const unsigned int Dimension = 3;
 
@@ -173,28 +170,31 @@ namespace
     
     typename ImageType::RegionType region = image->GetLargestPossibleRegion();
     typename ImageType::SizeType imageSize = region.GetSize();
-    std::cout << "size" << imageSize << std::endl;
-
-
-    Index3Type seed{{307, 204, 160}};
-    Index3Type target{{329, 190, 159}};
+    DEBUG_MSG("image size:" << imageSize << std::endl);
     
     std::vector<Index3Type> path;
-    int dijkstraRet = GetPathDijkstra<ImageType>(seed, target, image, path);
+    // use seed as target / target as seed to avoid reveresing vecotr
+    for (int i = 0; i < markers.size() - 1; ++i)
+    {
+      auto seed = markers[i+1];
+      auto dest = markers[i];
+      std::vector<Index3Type> subPath;
+      int retVal = GetPathDijkstra<ImageType>(seed, dest, image, subPath);
+      // TODO: handling retVal == EXIT_FAILURE
+      path.insert(path.begin(), subPath.begin(), subPath.end());
+      DEBUG_MSG("dijkstra: " << retVal << " : " << subPath.size());
+    }
+    path.push_back(markers.back());
+    DEBUG_MSG("path size: " << path.size());
     
-    // Get pixel value example
-    // typename ImageType::IndexType pixelIndex{{334, 186, 157}};
-    // Index3Type pixelIndex{{334, 186, 157}};
-    // typename ImageType::PixelType pixelValue = image->GetPixel(pixelIndex);
-    // std::cout << pixelValue << std::endl;
 
     
-    std::cout << "dijkstra: " << dijkstraRet << " : " << path.size() << std::endl;
-    
-    // for (auto& idx: path)
-    // {
-    //   std::cout << idx << std::endl;
-    // }
+    std::string flattenMarkersStr = FlattenFiducials(path);
+    std::ofstream rts;
+    rts.open(returnParameterFile.c_str());
+
+    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
+    rts.close();
 
     return EXIT_SUCCESS;
   }
