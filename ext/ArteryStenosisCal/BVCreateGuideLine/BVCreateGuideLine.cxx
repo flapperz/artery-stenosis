@@ -4,6 +4,12 @@
 
 #include "BVCreateGuideLineCLP.h"
 
+#ifdef NDEBUG
+#define DEBUG_MSG(str) do { } while ( false )
+#else
+#define DEBUG_MSG(str) do { std::cout << str << std::endl; } while( false )
+#endif
+
 // Use an anonymous namespace to keep class types and function names
 // from colliding when module is used as shared object module.  Every
 // thing should be in an anonymous namespace except for the module
