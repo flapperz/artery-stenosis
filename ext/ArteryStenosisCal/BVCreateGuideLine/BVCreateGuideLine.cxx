@@ -46,7 +46,7 @@ namespace
   }
   
   template <typename TImage>
-  std::vector<Index3Type> Dijkstra(Index3Type seed, Index3Type dest, typename TImage::Pointer image)
+  int GetPathDijkstra(Index3Type seed, Index3Type dest, typename TImage::Pointer image, std::vector<Index3Type> &path)
   {
     typedef TImage ImageType;
 
@@ -118,13 +118,12 @@ namespace
     std::cout << "it: " << it << std::endl;
     
     if (! is_reach)
-      return {{0,0,0}};
+      return EXIT_FAILURE;
 
     it = 0;
     // crawl
     Index3Type crawler = dest;
     Index3Type parent;
-    std::vector<Index3Type> path;
     while (pred_map.find(crawler) != pred_map.end() && it < 512 + 275 + 512)
     {
       it += 1;
@@ -133,15 +132,13 @@ namespace
       crawler = parent;
     }
 
-    return path;
+    return EXIT_SUCCESS;
   }
 
   template <typename TPixel>
   int DoIt(int argc, char *argv[], TPixel tpixelVal)
   {
     PARSE_ARGS;
-    
-    std::cout << typeid(TPixel).name() << std::endl;
     
     std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
     for (auto &x : markers)
@@ -176,7 +173,8 @@ namespace
     Index3Type seed{{307, 204, 160}};
     Index3Type target{{329, 190, 159}};
     
-    auto path = Dijkstra<ImageType>(seed, target, image);
+    std::vector<Index3Type> path;
+    int dijkstraRet = GetPathDijkstra<ImageType>(seed, target, image, path);
     
     // Get pixel value example
     // typename ImageType::IndexType pixelIndex{{334, 186, 157}};
@@ -185,7 +183,7 @@ namespace
     // std::cout << pixelValue << std::endl;
 
     
-    std::cout << path.size() << std::endl;
+    std::cout << "dijkstra: " << dijkstraRet << " : " << path.size() << std::endl;
     
     // for (auto& idx: path)
     // {
@@ -202,15 +200,14 @@ int main(int argc, char *argv[])
 
   itk::ImageIOBase::IOPixelType pixelType;
   itk::ImageIOBase::IOComponentType componentType;
-  
+
   try
   {
     itk::GetImageType(inputVolume, pixelType, componentType);
 
     // This filter handles all types on input, but only produces
     // signed types
-    std::cout << "the type isssss" << std::endl;
-    std::cout << componentType << std::endl;
+    std::cout << "the image type isssss:" << componentType << std::endl;
     switch (componentType)
     {
     case itk::ImageIOBase::UCHAR:
@@ -229,7 +226,6 @@ int main(int argc, char *argv[])
       return DoIt(argc, argv, static_cast<unsigned int>(0));
       break;
     case itk::ImageIOBase::INT:
-      std::cout << "I'm fucked here bitch" << std::endl;
       return DoIt(argc, argv, static_cast<int>(0));
       break;
     case itk::ImageIOBase::ULONG:
@@ -260,8 +256,6 @@ int main(int argc, char *argv[])
     std::cerr << excep << std::endl;
     return EXIT_FAILURE;
   }
-
-
 
   return EXIT_SUCCESS;
 }
