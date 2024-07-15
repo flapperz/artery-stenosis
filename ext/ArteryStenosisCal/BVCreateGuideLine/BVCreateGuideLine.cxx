@@ -79,19 +79,19 @@ namespace
 
       double u_dist = u_pair.first;
       Index3Type u_idx = u_pair.second;
-      
+
       if (u_idx == dest)
       {
         is_reach = true;
         break;
       }
-      
+
       if (dist_map.find(u_idx) != dist_map.end() && u_dist > dist_map[u_idx])
       {
         DEBUG_MSG("In here too wtf!!!");
         continue;
       }
-      for (auto const& vi: {-1, 0, 1})
+      for (auto const &vi : {-1, 0, 1})
         for (auto const &vj : {-1, 0, 1})
           for (auto const &vk : {-1, 0, 1})
           {
@@ -101,7 +101,7 @@ namespace
             v_idx[0] += vi;
             v_idx[1] += vj;
             v_idx[2] += vk;
-            
+
             int dist_uv = 1;
             // process
             double v_value = image->GetPixel(v_idx);
@@ -120,10 +120,10 @@ namespace
             }
           }
     }
-    
+
     std::cout << "it: " << it << std::endl;
-    
-    if (! is_reach)
+
+    if (!is_reach)
       return EXIT_FAILURE;
 
     it = 0;
@@ -145,7 +145,7 @@ namespace
   int DoIt(int argc, char *argv[], TPixel tpixelVal)
   {
     PARSE_ARGS;
-    
+
     std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
     if (markers.size() < 2)
     {
@@ -153,7 +153,6 @@ namespace
       std::cerr << "input have less than 2 point markers" << std::endl;
       return EXIT_FAILURE;
     }
-    
 
     const unsigned int Dimension = 3;
 
@@ -167,16 +166,15 @@ namespace
     reader->Update();
     image = reader->GetOutput();
 
-    
     typename ImageType::RegionType region = image->GetLargestPossibleRegion();
     typename ImageType::SizeType imageSize = region.GetSize();
     DEBUG_MSG("image size:" << imageSize << std::endl);
-    
+
     std::vector<Index3Type> path;
     // use seed as target / target as seed to avoid reveresing vecotr
     for (int i = 0; i < markers.size() - 1; ++i)
     {
-      auto seed = markers[i+1];
+      auto seed = markers[i + 1];
       auto dest = markers[i];
       std::vector<Index3Type> subPath;
       int retVal = GetPathDijkstra<ImageType>(seed, dest, image, subPath);
@@ -186,9 +184,7 @@ namespace
     }
     path.push_back(markers.back());
     DEBUG_MSG("path size: " << path.size());
-    
 
-    
     std::string flattenMarkersStr = FlattenFiducials(path);
     std::ofstream rts;
     rts.open(returnParameterFile.c_str());
