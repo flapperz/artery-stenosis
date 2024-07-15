@@ -199,16 +199,16 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             and self._parameterNode.inputVolume
             and self._parameterNode.thresholdedVolume
         ):
-            self.ui.applyButton.toolTip = _('Compute output volume')
+            self.ui.applyButton.toolTip = 'Compute output volume'
             self.ui.applyButton.enabled = True
         else:
-            self.ui.applyButton.toolTip = _('Select input and output volume nodes')
+            self.ui.applyButton.toolTip = 'Select input and output volume nodes'
             self.ui.applyButton.enabled = False
 
     def onApplyButton(self) -> None:
         """Run processing when user clicks "Apply" button."""
         with slicer.util.tryWithErrorDisplay(
-            _('Failed to compute results.'), waitCursor=True
+            'Failed to compute results.', waitCursor=True
         ):
             # Compute output
             self.logic.process(
