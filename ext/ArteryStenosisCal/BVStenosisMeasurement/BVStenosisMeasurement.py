@@ -1,10 +1,18 @@
 import logging
 import os
+from importlib import reload
 from typing import Annotated, Optional
 
 import slicer
 import vtk
-from slicer import vtkMRMLScalarVolumeNode
+from BVStenosisMeasurementLib import MRMLUtils
+from slicer import (
+    vtkMRMLMarkupsCurveNode,
+    vtkMRMLMarkupsFiducialNode,
+    vtkMRMLMarkupsNode,
+    vtkMRMLMarkupsROINode,
+    vtkMRMLScalarVolumeNode,
+)
 from slicer.parameterNodeWrapper import (
     WithinRange,
     parameterNodeWrapper,
@@ -15,6 +23,8 @@ from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModuleWidget,
 )
 from slicer.util import VTKObservationMixin
+
+reload(MRMLUtils)
 
 #
 # BVStenosisMeasurement
@@ -65,10 +75,20 @@ class BVStenosisMeasurementParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
+    _inputVolumePrevId: Optional[vtkMRMLScalarVolumeNode]
+    markers: vtkMRMLMarkupsFiducialNode
+    _markersPrev: Optional[vtkMRMLMarkupsFiducialNode]
+
     imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
     invertThreshold: bool = False
     thresholdedVolume: vtkMRMLScalarVolumeNode
     invertedVolume: vtkMRMLScalarVolumeNode
+
+    #
+    # internal
+    #
+    _roi: vtkMRMLMarkupsROINode
+    _guideLine: vtkMRMLMarkupsCurveNode
 
 
 #
@@ -85,8 +105,8 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         """Called when the user opens the module the first time and the widget is initialized."""
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)  # needed for parameter node observation
-        self.logic = None
-        self._parameterNode = None
+        self.logic : Optional[BVStenosisMeasurementLogic] = None
+        self._parameterNode : Optional[BVStenosisMeasurementParameterNode] = None
         self._parameterNodeGuiTag = None
 
     def setup(self) -> None:
@@ -169,6 +189,23 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             if firstVolumeNode:
                 self._parameterNode.inputVolume = firstVolumeNode
 
+        #
+        # initialize internal parameter
+        #
+
+        internal_prefix = "BVInternal:"
+        internal_tmp_prefix = "BVInternal:DO_NOT_USE"
+
+        if not self._parameterNode._roi:
+            roiNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode')
+            roiNode.SetName(f"{internal_prefix} Heart Region")
+            self._parameterNode._roi = roiNode
+
+        if not self._parameterNode._guideLine:
+            guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
+            guideLine.SetName(f"{internal_tmp_prefix} guideLine")
+            self._parameterNode._guideLine = guideLine
+
     def setParameterNode(
         self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]
     ) -> None:
@@ -182,6 +219,10 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self.removeObserver(
                 self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
             )
+            self.removeObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._updateInputObserver
+            )
+
         self._parameterNode = inputParameterNode
         if self._parameterNode:
             # Note: in the .ui file, a Qt dynamic property called "SlicerParameterName" is set on each
@@ -190,18 +231,90 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self.addObserver(
                 self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
             )
+            self.addObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._updateInputObserver
+            )
+            self._updateInputObserver()
             self._checkCanApply()
+
+    def _updateInputObserver(self, caller=None, event=None) -> None:
+        print('parameterNodeUpdate')
+        # print(caller)
+        print(event)
+
+        # inputVolumeNode = self._parameterNode.inputVolume
+        # newInputVolumeID = self._parameterNode.inputVolume.GetID()
+        # if newInputVolumeID != self._parameterNode._inputVolumePrevId:
+        #     self._parameterNode._inputVolume = newInputVolumeID
+        # print(f'{self._parameterNode._inputVolumePrevId} -> {newInputVolumeID}')
+
+        # markersNode = self._parameterNode.markers
+        # newMarkersID = markersNode.GetID() if markersNode else None
+        # if newMarkersID != self._parameterNode._markersPrevId:
+        #     self._parameterNode._markersPrevId = newMarkersID
+        # print(f'{self._parameterNode._markersPrevId} -> {newMarkersID}')
+
+        newID = (
+            self._parameterNode.markers.GetID() if self._parameterNode.markers else None
+        )
+        oldID = (
+            self._parameterNode._markersPrev.GetID()
+            if self._parameterNode._markersPrev
+            else None
+        )
+        # https://apidocs.slicer.org/master/classvtkMRMLMarkupsNode.html#aceeef8806df28e3807988c38510e56caad628dfaf54f410d2f4c6bc5800aa8a30
+
+        markersNode = self._parameterNode.markers
+        if self._parameterNode._markersPrev:
+            self.removeObserver(
+                self._parameterNode._markersPrev,
+                vtkMRMLMarkupsNode.PointEndInteractionEvent,
+                self._onMarkersModified,
+            )
+            self.removeObserver(
+                    self._parameterNode._markersPrev,
+                    vtkMRMLMarkupsNode.PointPositionDefinedEvent,
+                    self._onMarkersModified,
+                    )
+        if self._parameterNode.markers:
+            self.addObserver(
+                    markersNode,
+                    vtkMRMLMarkupsNode.PointEndInteractionEvent,
+                    self._onMarkersModified,
+                    )
+            self.addObserver(
+                    markersNode,
+                    vtkMRMLMarkupsNode.PointPositionDefinedEvent,
+                    self._onMarkersModified,
+                    )
+        if markersNode != self._parameterNode._markersPrev:
+            self._parameterNode._markersPrev = markersNode
+
+        print(f'{oldID} -> {newID}')
+
+    def _onMarkersModified(self, caller=None, event=None):
+        """Only Handle point change"""
+        # TODO: check can apply
+        if self._parameterNode.inputVolume and self._parameterNode.markers.GetNumberOfControlPoints() > 1:
+            self.logic.processMarkers(
+                self._parameterNode.inputVolume,
+                self._parameterNode.markers,
+                self._parameterNode._guideLine
+            )
+
+        print('point has modified')
 
     def _checkCanApply(self, caller=None, event=None) -> None:
         if (
             self._parameterNode
             and self._parameterNode.inputVolume
-            and self._parameterNode.thresholdedVolume
+            and self._parameterNode.markers
+            # and self._parameterNode.thresholdedVolume
         ):
             self.ui.applyButton.toolTip = 'Compute output volume'
             self.ui.applyButton.enabled = True
         else:
-            self.ui.applyButton.toolTip = 'Select input and output volume nodes'
+            self.ui.applyButton.toolTip = 'Select Input Volume and Markers'
             self.ui.applyButton.enabled = False
 
     def onApplyButton(self) -> None:
@@ -209,24 +322,29 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute results.', waitCursor=True
         ):
-            # Compute output
-            self.logic.process(
-                self.ui.inputSelector.currentNode(),
-                self.ui.outputSelector.currentNode(),
-                self.ui.imageThresholdSliderWidget.value,
-                self.ui.invertOutputCheckBox.checked,
+            self.logic.processMarkers(
+                self._parameterNode.inputVolume,
+                self._parameterNode.markers,
+                self._parameterNode._guideLine
             )
+            # # Compute output
+            # self.logic.process(
+            #     self.ui.inputVolumeSelector.currentNode(),
+            #     self.ui.outputSelector.currentNode(),
+            #     self.ui.imageThresholdSliderWidget.value,
+            #     self.ui.invertOutputCheckBox.checked,
+            # )
 
-            # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with inverted threshold is written there
-                self.logic.process(
-                    self.ui.inputSelector.currentNode(),
-                    self.ui.invertedOutputSelector.currentNode(),
-                    self.ui.imageThresholdSliderWidget.value,
-                    not self.ui.invertOutputCheckBox.checked,
-                    showResult=False,
-                )
+            # # Compute inverted output (if needed)
+            # if self.ui.invertedOutputSelector.currentNode():
+            #     # If additional output volume is selected then result with inverted threshold is written there
+            #     self.logic.process(
+            #         self.ui.inputVolumeSelector.currentNode(),
+            #         self.ui.invertedOutputSelector.currentNode(),
+            #         self.ui.imageThresholdSliderWidget.value,
+            #         not self.ui.invertOutputCheckBox.checked,
+            #         showResult=False,
+            #     )
 
 
 #
@@ -246,10 +364,91 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
+        print("BVStenosisMeasurementLogic init")
         ScriptedLoadableModuleLogic.__init__(self)
+
+        # state
+        self.createGuideLineCliNode = None
+        # TODO: change to function factory or wrapper
+        self.guideLineNode = None
+        self.ijk2rasMat = None
+        self.ras2ijkMat = None
+
+        # debug volume
+        # shNode = slicer.vtkMRMLSubjectHierachyNode.GetSubjectHierachyNode(slicer.mrmlScene)
+
+        self.debugVolume = None
 
     def getParameterNode(self):
         return BVStenosisMeasurementParameterNode(super().getParameterNode())
+
+    def _startProcessMarkers(self, inputVolume, markers):
+        markersIJK = [
+            MRMLUtils.get_fiducial_as_ijk(markers, i, self.ras2ijkMat)
+            for i in range(markers.GetNumberOfControlPoints())
+        ]
+        flattenMarkers = [x for ijk in markersIJK for x in ijk]
+        print("input flattenMarkers:", flattenMarkers)
+        parameter = {
+            "inputVolume" : inputVolume,
+            "inFlattenMarkersIJK" : flattenMarkers
+        }
+        BVCreateGuideLine = slicer.modules.bvcreateguideline
+        cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
+        return cliNode
+
+    def _onProcessMarkersUpdate(self, cliNode, event):
+        print("Got a %s from a %s" % (event, cliNode.GetClassName()))
+        if cliNode.IsA('vtkMRMLCommandLineModuleNode'):
+            print("Status is %s" % cliNode.GetStatusString())
+
+        if cliNode.GetStatus() & cliNode.Completed:
+            if cliNode.GetStatus() & cliNode.ErrorsMask:
+                # error
+                errorText = cliNode.GetErrorText()
+                print("CLI execution failed: " + errorText)
+            else:
+                # success
+                outIJK = cliNode.GetParameterAsString("outFlattenMarkersIJK")
+                print("CLI execution succeeded. Output model node ID: "+outIJK)
+                self.guideLineNode.RemoveAllControlPoints()
+                # TODO: refactor out create curve function
+                print("CLI output:", outIJK)
+                outIJK = [int(x) for x in outIJK.split(',')]
+                # outKJI = flattenMarkers
+
+                pathKJI = []
+                print("out path length:", len(outIJK))
+                for i in range(0, len(outIJK), 3):
+                    pathKJI.append([outIJK[i+2], outIJK[i+1], outIJK[i]])
+                print("formatted:", pathKJI)
+                MRMLUtils.create_curve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
+            slicer.mrmlScene.RemoveNode(cliNode)
+        # TODO: better if-else
+
+        if cliNode.GetStatus() & cliNode.Cancelled:
+            slicer.mrmlScene.RemoveNode(cliNode)
+
+    def processMarkers(
+            self,
+            inputVolume: vtkMRMLScalarVolumeNode,
+            markers: vtkMRMLMarkupsFiducialNode,
+            guideLine: vtkMRMLMarkupsCurveNode
+    ) -> None:
+        if self.createGuideLineCliNode:
+            self.createGuideLineCliNode.Cancel()
+
+        self.guideLineNode = guideLine
+
+        x = vtk.vtkMatrix4x4()
+        inputVolume.GetIJKToRASMatrix(x)
+        self.ijk2rasMat = MRMLUtils.vtk4x4matrix_to_numpy(x)
+        
+        inputVolume.GetRASToIJKMatrix(x)
+        self.ras2ijkMat = MRMLUtils.vtk4x4matrix_to_numpy(x)
+
+        self.createGuideLineCliNode = self._startProcessMarkers(inputVolume, markers)
+        self.createGuideLineCliNode.AddObserver('ModifiedEvent', self._onProcessMarkersUpdate)
 
     def process(
         self,
@@ -278,6 +477,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         logging.info('Processing started')
 
         # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
+        # TODO: maybe we can reuse cliNode / parameter node
         cliParams = {
             'InputVolume': inputVolume.GetID(),
             'OutputVolume': outputVolume.GetID(),
@@ -291,6 +491,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             wait_for_completion=True,
             update_display=showResult,
         )
+
         # We don't need the CLI module node anymore, remove it to not clutter the scene with it
         slicer.mrmlScene.RemoveNode(cliNode)
 
