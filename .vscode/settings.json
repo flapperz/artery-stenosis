@@ -1,6 +1,5 @@
 {
     "python.defaultInterpreterPath": "/opt/sr561/python-install/bin/PythonSlicer",
-    "python.analysis.typeCheckingMode": "basic",
     
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
     "cmake.allowCommentsInPresetsFile": true,
