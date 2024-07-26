@@ -9,7 +9,7 @@
             "binaryDir": "${sourceDir}/../ArteryStenosisCal-build",
             "cmakeExecutable": "/usr/local/bin/cmake",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Release"
             }
         }
     ],
