@@ -2,7 +2,7 @@ import vtk
 from slicer import numpy as np
 
 
-def create_curve(points_kji, curve_node, ijk2ras_mat, spacing=0.4):
+def createCurve(points_kji, curve_node, ijk2ras_mat, spacing=0.4):
     x = np.array(points_kji, float)
     x = x.T
     x = x[::-1, :]
@@ -27,7 +27,7 @@ def create_curve(points_kji, curve_node, ijk2ras_mat, spacing=0.4):
             curve_node.AddControlPoint(vtk.vtkVector3d(*x[:, pos_j]))
             last_add_dist = curr_dist
 
-def get_fiducial_as_kji(fiducial_node, i, ras2ijk_mat):
+def getFiducialAsKJI(fiducial_node, i, ras2ijk_mat):
     ras_homo = np.ones([4, 1])
     fiducial_node.GetNthControlPointPosition(i, ras_homo[:3, 0])
     return tuple(
@@ -44,7 +44,7 @@ def get_fiducial_as_kji(fiducial_node, i, ras2ijk_mat):
 #         out = out[:-1]
 #     return out
 
-def get_fiducial_as_ijk(fiducial_node, i, ras2ijk_mat):
+def getFiducialAsIJK(fiducial_node, i, ras2ijk_mat):
     ras_homo = np.ones([4, 1])
     fiducial_node.GetNthControlPointPosition(i, ras_homo[:3, 0])
     return tuple(
@@ -54,7 +54,7 @@ def get_fiducial_as_ijk(fiducial_node, i, ras2ijk_mat):
     )
 
 
-def vtk4x4matrix_to_numpy(matrix):
+def vtk4x4matrix2numpy(matrix):
     """
     Copies the elements of a vtkMatrix4x4 into a numpy array.
 

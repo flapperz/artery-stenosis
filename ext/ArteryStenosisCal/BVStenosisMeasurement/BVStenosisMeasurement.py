@@ -364,7 +364,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
-        print("BVStenosisMeasurementLogic init")
+        print("BVStenosisMeasurementLogic initialize")
         ScriptedLoadableModuleLogic.__init__(self)
 
         # state
@@ -384,7 +384,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def _startProcessMarkers(self, inputVolume, markers):
         markersIJK = [
-            MRMLUtils.get_fiducial_as_ijk(markers, i, self.ras2ijkMat)
+            MRMLUtils.getFiducialAsIJK(markers, i, self.ras2ijkMat)
             for i in range(markers.GetNumberOfControlPoints())
         ]
         flattenMarkers = [x for ijk in markersIJK for x in ijk]
@@ -422,7 +422,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
                 for i in range(0, len(outIJK), 3):
                     pathKJI.append([outIJK[i+2], outIJK[i+1], outIJK[i]])
                 print("formatted:", pathKJI)
-                MRMLUtils.create_curve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
+                MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
             slicer.mrmlScene.RemoveNode(cliNode)
         # TODO: better if-else
 
@@ -442,10 +442,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         x = vtk.vtkMatrix4x4()
         inputVolume.GetIJKToRASMatrix(x)
-        self.ijk2rasMat = MRMLUtils.vtk4x4matrix_to_numpy(x)
-        
+        self.ijk2rasMat = MRMLUtils.vtk4x4matrix2numpy(x)
+
         inputVolume.GetRASToIJKMatrix(x)
-        self.ras2ijkMat = MRMLUtils.vtk4x4matrix_to_numpy(x)
+        self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
         self.createGuideLineCliNode = self._startProcessMarkers(inputVolume, markers)
         self.createGuideLineCliNode.AddObserver('ModifiedEvent', self._onProcessMarkersUpdate)
