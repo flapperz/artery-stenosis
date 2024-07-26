@@ -20,15 +20,15 @@
       <description><![CDATA[Input volume]]></description>
     </image>
     <integer-vector>
-      <name>inFlattenMarkersKJI</name>
-      <label>Serialized fiducial return</label>
+      <name>inFlattenMarkersIJK</name>
+      <label>Serialized fiducial input</label>
       <channel>input</channel>
       <default>162, 198, 313, 162, 196, 317, 160, 192, 326, 159, 190, 329, 158, 188, 332, 157, 186, 334, 155, 182, 337, 153, 179, 341, 152, 175, 345</default>
       <longflag>inMarkers</longflag>
       <description><![CDATA[Return serialized markups]]></description>
     </integer-vector>
     <integer-vector>
-      <name>outFlattenGuideLineKJI</name>
+      <name>outFlattenMarkersIJK</name>
       <label>Serialized fiducial return</label>
       <channel>output</channel>
       <default>0, 0, 0</default>

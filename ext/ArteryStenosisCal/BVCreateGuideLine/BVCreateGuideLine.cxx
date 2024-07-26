@@ -28,7 +28,7 @@ namespace
       return result;
 
     for (int i=0; i<raw.size(); i+=3)
-      result.push_back({raw[i+2], raw[i+1], raw[i]});
+      result.push_back({raw[i], raw[i+1], raw[i+2]});
 
     return result;
   }
@@ -42,9 +42,9 @@ namespace
 
     for (auto& e: markers)
     {
-      result+=std::to_string(e[2])+",";
-      result+=std::to_string(e[1])+",";
       result+=std::to_string(e[0])+",";
+      result+=std::to_string(e[1])+",";
+      result+=std::to_string(e[2])+",";
     }
     result.pop_back();
 
@@ -146,7 +146,12 @@ namespace
   {
     PARSE_ARGS;
 
-    std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersKJI);
+    std::vector<Index3Type> markers = ParseFiducials(inFlattenMarkersIJK);
+    DEBUG_MSG("input markers");
+    for (int i = 0; i < markers.size(); ++i)
+    {
+      DEBUG_MSG(markers[i]);
+    }
     if (markers.size() < 2)
     {
       // TODO: better handling this case
@@ -179,7 +184,7 @@ namespace
       std::vector<Index3Type> subPath;
       int retVal = GetPathDijkstra<ImageType>(seed, dest, image, subPath);
       // TODO: handling retVal == EXIT_FAILURE
-      path.insert(path.begin(), subPath.begin(), subPath.end());
+      path.insert(path.end(), subPath.begin(), subPath.end());
       DEBUG_MSG("dijkstra: " << retVal << " : " << subPath.size());
     }
     path.push_back(markers.back());
@@ -189,7 +194,7 @@ namespace
     std::ofstream rts;
     rts.open(returnParameterFile.c_str());
 
-    rts << "outFlattenGuideLineKJI = " << flattenMarkersStr << std::endl;
+    rts << "outFlattenMarkersIJK = " << flattenMarkersStr << std::endl;
     rts.close();
 
     return EXIT_SUCCESS;

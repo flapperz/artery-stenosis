@@ -30,6 +30,7 @@ add_subdirectory(StenosisCal)
 add_subdirectory(CreateGuideLinePython)
 add_subdirectory(DefaultPythonMod)
 add_subdirectory(BVCreateGuideLine)
+add_subdirectory(BVStenosisMeasurement)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
