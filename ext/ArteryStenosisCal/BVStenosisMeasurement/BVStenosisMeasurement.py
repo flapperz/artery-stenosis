@@ -89,6 +89,7 @@ class BVStenosisMeasurementParameterNode:
     #
     _roi: vtkMRMLMarkupsROINode
     _guideLine: vtkMRMLMarkupsCurveNode
+    _processedVolume: vtkMRMLScalarVolumeNode
 
 
 #
@@ -206,6 +207,10 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             guideLine.SetName(f"{internal_tmp_prefix} guideLine")
             self._parameterNode._guideLine = guideLine
 
+        if not self._parameterNode._processedVolume and self._parameterNode.inputVolume:
+            # self.logic.createProcessedVolume(self._parameterNode.inputVolume, self._parameterNode._processedVolume)
+            pass
+
     def setParameterNode(
         self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]
     ) -> None:
@@ -293,7 +298,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         print(f'{oldID} -> {newID}')
 
     def _onMarkersModified(self, caller=None, event=None):
-        """Only Handle point change"""
+        """Handle markers change case: move, add, change markups node, reorder ?"""
         # TODO: check can apply
         if self._parameterNode.inputVolume and self._parameterNode.markers.GetNumberOfControlPoints() > 1:
             self.logic.processMarkers(
@@ -322,11 +327,14 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute results.', waitCursor=True
         ):
-            self.logic.processMarkers(
-                self._parameterNode.inputVolume,
-                self._parameterNode.markers,
-                self._parameterNode._guideLine
+            self.logic.createProcessedVolume(
+                self._parameterNode.inputVolume, self._parameterNode.thresholdedVolume
             )
+            # self.logic.processMarkers(
+            #     self._parameterNode.inputVolume,
+            #     self._parameterNode.markers,
+            #     self._parameterNode._guideLine
+            # )
             # # Compute output
             # self.logic.process(
             #     self.ui.inputVolumeSelector.currentNode(),
@@ -429,9 +437,50 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         if cliNode.GetStatus() & cliNode.Cancelled:
             slicer.mrmlScene.RemoveNode(cliNode)
 
+    def createProcessedVolume(self, inputVolume: vtkMRMLScalarVolumeNode, outputVolume: vtkMRMLScalarVolumeNode):
+        imageDimensions = inputVolume.GetImageData().GetDimensions()
+        voxelType = vtk.VTK_DOUBLE
+        imageOrigin = inputVolume.GetImageData().GetOrigin()
+        imageSpacing = inputVolume.GetImageData().GetSpacing()
+        # volumeToRAS = inputVolume.GetImageData().GetObjectToWorldMatrix()
+        fillVoxelValue = 0
+        volumeToRAS = inputVolume.GetImageData().GetDirectionMatrix()
+        imageDirections = [
+            [
+                volumeToRAS.GetElement(0, 0),
+                volumeToRAS.GetElement(0, 1),
+                volumeToRAS.GetElement(0, 2),
+            ],
+            [
+                volumeToRAS.GetElement(1, 0),
+                volumeToRAS.GetElement(1, 1),
+                volumeToRAS.GetElement(1, 2),
+            ],
+            [
+                volumeToRAS.GetElement(2, 0),
+                volumeToRAS.GetElement(2, 1),
+                volumeToRAS.GetElement(2, 2),
+            ],
+        ]
+
+        imageData = vtk.vtkImageData()
+        imageData.SetDimensions(imageDimensions)
+        imageData.AllocateScalars(voxelType, 1)
+        imageData.GetPointData().GetScalars().Fill(fillVoxelValue)
+
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", "mytestVolume2")
+        outputVolume.SetOrigin(imageOrigin)
+        outputVolume.SetSpacing(imageSpacing)
+        outputVolume.SetIJKToRASDirections(imageDirections)
+        outputVolume.SetAndObserveImageData(imageData)
+        outputVolume.CreateDefaultDisplayNodes()
+        outputVolume.CreateDefaultStorageNode()
+        return
+
+
     def processMarkers(
             self,
-            inputVolume: vtkMRMLScalarVolumeNode,
+            processedVolume: vtkMRMLScalarVolumeNode,
             markers: vtkMRMLMarkupsFiducialNode,
             guideLine: vtkMRMLMarkupsCurveNode
     ) -> None:
@@ -441,13 +490,13 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         self.guideLineNode = guideLine
 
         x = vtk.vtkMatrix4x4()
-        inputVolume.GetIJKToRASMatrix(x)
+        processedVolume.GetIJKToRASMatrix(x)
         self.ijk2rasMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
-        inputVolume.GetRASToIJKMatrix(x)
+        processedVolume.GetRASToIJKMatrix(x)
         self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
-        self.createGuideLineCliNode = self._startProcessMarkers(inputVolume, markers)
+        self.createGuideLineCliNode = self._startProcessMarkers(processedVolume, markers)
         self.createGuideLineCliNode.AddObserver('ModifiedEvent', self._onProcessMarkersUpdate)
 
     def process(
