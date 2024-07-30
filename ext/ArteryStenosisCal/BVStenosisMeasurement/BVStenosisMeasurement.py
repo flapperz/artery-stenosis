@@ -438,30 +438,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             slicer.mrmlScene.RemoveNode(cliNode)
 
     def createProcessedVolume(self, inputVolume: vtkMRMLScalarVolumeNode, outputVolume: vtkMRMLScalarVolumeNode):
+        # ? example for create new volume
         imageDimensions = inputVolume.GetImageData().GetDimensions()
         voxelType = vtk.VTK_DOUBLE
         imageOrigin = inputVolume.GetImageData().GetOrigin()
         imageSpacing = inputVolume.GetImageData().GetSpacing()
-        # volumeToRAS = inputVolume.GetImageData().GetObjectToWorldMatrix()
         fillVoxelValue = 0
         volumeToRAS = inputVolume.GetImageData().GetDirectionMatrix()
-        imageDirections = [
-            [
-                volumeToRAS.GetElement(0, 0),
-                volumeToRAS.GetElement(0, 1),
-                volumeToRAS.GetElement(0, 2),
-            ],
-            [
-                volumeToRAS.GetElement(1, 0),
-                volumeToRAS.GetElement(1, 1),
-                volumeToRAS.GetElement(1, 2),
-            ],
-            [
-                volumeToRAS.GetElement(2, 0),
-                volumeToRAS.GetElement(2, 1),
-                volumeToRAS.GetElement(2, 2),
-            ],
-        ]
+        imageDirections = MRMLUtils.vtk3x3matrix2numpy(volumeToRAS)
 
         imageData = vtk.vtkImageData()
         imageData.SetDimensions(imageDimensions)
@@ -476,7 +460,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         outputVolume.CreateDefaultDisplayNodes()
         outputVolume.CreateDefaultStorageNode()
         return
-
 
     def processMarkers(
             self,
