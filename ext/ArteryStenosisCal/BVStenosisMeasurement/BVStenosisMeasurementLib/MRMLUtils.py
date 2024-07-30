@@ -54,7 +54,7 @@ def getFiducialAsIJK(fiducial_node, i, ras2ijk_mat):
     )
 
 
-def vtk4x4matrix2numpy(matrix):
+def vtk4x4matrix2numpy(matrix, outDtype='d'):
     """
     Copies the elements of a vtkMatrix4x4 into a numpy array.
 
@@ -62,8 +62,15 @@ def vtk4x4matrix2numpy(matrix):
     :type matrix: vtk.vtkMatrix4x4
     :rtype: numpy.ndarray
     """
-    m = np.ones((4, 4))
+    m = np.ones((4, 4), outDtype)
     for i in range(4):
         for j in range(4):
+            m[i, j] = matrix.GetElement(i, j)
+    return m
+
+def vtk3x3matrix2numpy(matrix, outDtype='d'):
+    m = np.ones((3, 3), outDtype)
+    for i in range(3):
+        for j in range(3):
             m[i, j] = matrix.GetElement(i, j)
     return m
