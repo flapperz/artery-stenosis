@@ -1,5 +1,5 @@
+import numpy as np
 import vtk
-from slicer import numpy as np
 
 
 def createCurve(points_kji, curve_node, ijk2ras_mat, spacing=0.4):
