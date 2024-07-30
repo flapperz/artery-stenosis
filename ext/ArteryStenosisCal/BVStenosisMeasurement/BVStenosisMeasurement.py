@@ -60,6 +60,8 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
 #
 # BVStenosisMeasurementParameterNode
 #
+# --Parameter--
+#
 
 
 @parameterNodeWrapper
@@ -94,6 +96,8 @@ class BVStenosisMeasurementParameterNode:
 
 #
 # BVStenosisMeasurementWidget
+#
+# --Widget--
 #
 
 
@@ -357,6 +361,8 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
 #
 # BVStenosisMeasurementLogic
+#
+# --Logic--
 #
 
 
