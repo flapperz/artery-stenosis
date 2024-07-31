@@ -77,9 +77,8 @@ class BVStenosisMeasurementParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
-    _inputVolumePrevId: Optional[vtkMRMLScalarVolumeNode]
+    heartRoi: vtkMRMLMarkupsROINode
     markers: vtkMRMLMarkupsFiducialNode
-    _markersPrev: Optional[vtkMRMLMarkupsFiducialNode]
 
     imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
     invertThreshold: bool = False
@@ -144,7 +143,8 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         )
 
         # Buttons
-        self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
+        self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
+        self.ui.volumeRoiLockButton.connect('stateChanged(int)', self.onVolumeRoiLockButtonClicked)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -326,7 +326,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self.ui.applyButton.toolTip = 'Select Input Volume and Markers'
             self.ui.applyButton.enabled = False
 
-    def onApplyButton(self) -> None:
+    def onApplyButtonClicked(self) -> None:
         """Run processing when user clicks "Apply" button."""
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute results.', waitCursor=True
@@ -358,6 +358,14 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             #         showResult=False,
             #     )
 
+    def onVolumeRoiLockButtonClicked(self, state: int) -> None:
+        """
+        :param int state: 0 off / 2 on
+        """
+
+        # state = self.ui.volumeRoiLockButton.checkState()
+        logging.debug(f'volumeRoiLockButton state: {state}')
+
 
 #
 # BVStenosisMeasurementLogic
@@ -378,7 +386,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
-        print("BVStenosisMeasurementLogic initialize")
+        logging.debug("BVStenosisMeasurementLogic initialize")
         ScriptedLoadableModuleLogic.__init__(self)
 
         # state
