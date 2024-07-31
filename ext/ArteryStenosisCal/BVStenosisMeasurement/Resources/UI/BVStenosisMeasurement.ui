@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>325</width>
-    <height>311</height>
+    <height>317</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -48,43 +48,48 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_3">
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_7">
         <property name="text">
-         <string>Image threshold:</string>
+         <string>Heart RoI:</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="ctkSliderWidget" name="imageThresholdSliderWidget">
-        <property name="toolTip">
-         <string>Set threshold value for computing the output image. Voxels that have intensities lower than this value will set to zero.</string>
+      <item row="1" column="1">
+       <widget class="qMRMLNodeComboBox" name="roiSelector">
+        <property name="nodeTypes">
+         <stringlist notr="true">
+          <string>vtkMRMLMarkupsROINode</string>
+         </stringlist>
         </property>
-        <property name="singleStep">
-         <double>0.100000000000000</double>
+        <property name="hideChildNodeTypes">
+         <stringlist notr="true"/>
         </property>
-        <property name="minimum">
-         <double>-100.000000000000000</double>
+        <property name="baseName">
+         <string>heart_roi</string>
         </property>
-        <property name="maximum">
-         <double>500.000000000000000</double>
+        <property name="editEnabled">
+         <bool>true</bool>
         </property>
-        <property name="value">
-         <double>0.500000000000000</double>
+        <property name="renameEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="interactionNodeSingletonTag">
+         <string notr="true"/>
         </property>
         <property name="SlicerParameterName" stdset="0">
-         <string>imageThreshold</string>
+         <string>roi</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
+      <item row="2" column="0">
        <widget class="QLabel" name="label_6">
         <property name="text">
          <string>Markers:</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
+      <item row="2" column="1">
        <widget class="qMRMLNodeComboBox" name="markersSelector">
         <property name="nodeTypes">
          <stringlist notr="true">
@@ -111,6 +116,35 @@
         </property>
         <property name="SlicerParameterName" stdset="0">
          <string>markers</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Image threshold:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="ctkSliderWidget" name="imageThresholdSliderWidget">
+        <property name="toolTip">
+         <string>Set threshold value for computing the output image. Voxels that have intensities lower than this value will set to zero.</string>
+        </property>
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>-100.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>500.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.500000000000000</double>
+        </property>
+        <property name="SlicerParameterName" stdset="0">
+         <string>imageThreshold</string>
         </property>
        </widget>
       </item>
@@ -200,7 +234,7 @@
       <string>Advanced</string>
      </property>
      <property name="collapsed">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_3">
       <item row="0" column="0">
@@ -341,6 +375,22 @@
     <hint type="destinationlabel">
      <x>214</x>
      <y>72</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BVStenosisMeasurement</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>roiSelector</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>162</x>
+     <y>155</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>214</x>
+     <y>71</y>
     </hint>
    </hints>
   </connection>
