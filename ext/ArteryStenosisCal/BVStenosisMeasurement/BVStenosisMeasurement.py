@@ -263,43 +263,50 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         #     self._parameterNode._markersPrevId = newMarkersID
         # print(f'{self._parameterNode._markersPrevId} -> {newMarkersID}')
 
-        newID = (
-            self._parameterNode.markers.GetID() if self._parameterNode.markers else None
-        )
-        oldID = (
-            self._parameterNode._markersPrev.GetID()
-            if self._parameterNode._markersPrev
-            else None
-        )
-        # https://apidocs.slicer.org/master/classvtkMRMLMarkupsNode.html#aceeef8806df28e3807988c38510e56caad628dfaf54f410d2f4c6bc5800aa8a30
-
+        eventList = [
+            vtkMRMLMarkupsNode.PointPositionDefinedEvent,
+            vtkMRMLMarkupsNode.PointEndInteractionEvent,
+        ]
         markersNode = self._parameterNode.markers
-        if self._parameterNode._markersPrev:
-            self.removeObserver(
-                self._parameterNode._markersPrev,
-                vtkMRMLMarkupsNode.PointEndInteractionEvent,
-                self._onMarkersModified,
-            )
-            self.removeObserver(
-                    self._parameterNode._markersPrev,
-                    vtkMRMLMarkupsNode.PointPositionDefinedEvent,
-                    self._onMarkersModified,
-                    )
-        if self._parameterNode.markers:
-            self.addObserver(
-                    markersNode,
-                    vtkMRMLMarkupsNode.PointEndInteractionEvent,
-                    self._onMarkersModified,
-                    )
-            self.addObserver(
-                    markersNode,
-                    vtkMRMLMarkupsNode.PointPositionDefinedEvent,
-                    self._onMarkersModified,
-                    )
-        if markersNode != self._parameterNode._markersPrev:
-            self._parameterNode._markersPrev = markersNode
 
-        print(f'{oldID} -> {newID}')
+        # https://apidocs.slicer.org/master/classvtkMRMLMarkupsNode.html#aceeef8806df28e3807988c38510e56caad628dfaf54f410d2f4c6bc5800aa8a30
+        prevMarkersNodeName = None
+        for e in eventList:
+            prevMarkersNode = self.observer(e, self._onMarkersModified)
+            if prevMarkersNode is not None:
+                prevMarkersNodeName = prevMarkersNode.GetName()
+                self.removeObserver(prevMarkersNode, e, self._onMarkersModified)
+        for e in eventList:
+            if markersNode is not None:
+                self.addObserver(markersNode, e, self._onMarkersModified)
+
+        # markersNode = self._parameterNode.markers
+        # if self._parameterNode._markersPrev:
+        #     self.removeObserver(
+        #         self._parameterNode._markersPrev,
+        #         vtkMRMLMarkupsNode.PointEndInteractionEvent,
+        #         self._onMarkersModified,
+        #     )
+        #     self.removeObserver(
+        #             self._parameterNode._markersPrev,
+        #             vtkMRMLMarkupsNode.PointPositionDefinedEvent,
+        #             self._onMarkersModified,
+        #             )
+        # if self._parameterNode.markers:
+        #     self.addObserver(
+        #             markersNode,
+        #             vtkMRMLMarkupsNode.PointEndInteractionEvent,
+        #             self._onMarkersModified,
+        #             )
+        #     self.addObserver(
+        #             markersNode,
+        #             vtkMRMLMarkupsNode.PointPositionDefinedEvent,
+        #             self._onMarkersModified,
+        #             )
+        # if markersNode != self._parameterNode._markersPrev:
+        #     self._parameterNode._markersPrev = markersNode
+
+        print(f'{prevMarkersNodeName} -> {markersNode.GetName() if markersNode else None}')
 
     def _onMarkersModified(self, caller=None, event=None):
         """Handle markers change case: move, add, change markups node, reorder ?"""
