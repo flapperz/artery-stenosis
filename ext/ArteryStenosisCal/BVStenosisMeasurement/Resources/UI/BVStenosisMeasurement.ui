@@ -68,7 +68,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="label_7">
         <property name="text">
-         <string>Heart RoI:</string>
+         <string>Heart ROI:</string>
         </property>
        </widget>
       </item>
@@ -83,7 +83,7 @@
          <stringlist notr="true"/>
         </property>
         <property name="baseName">
-         <string>heart_roi</string>
+         <string>Heart ROI</string>
         </property>
         <property name="editEnabled">
          <bool>true</bool>
