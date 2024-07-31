@@ -143,6 +143,8 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         # Buttons
         # connected signal is not reload
+
+        # input is validated via _checkCanCreateHeartRoi
         self.ui.heartRoiSelector.connect(
             'nodeAddedByUser(vtkMRMLNode*)',
             lambda node: self.logic.fitHeartRoiNode(
@@ -151,6 +153,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         )
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
         self.ui.volumeRoiLockButton.connect('stateChanged(int)', self.onVolumeRoiLockButtonClicked)
+        self.ui.adjustVolumeDisplayButton.connect('clicked(bool)', self.onAdjustVolumeDisplayButtonClicked)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -239,10 +242,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             )
             self.onParameterUpdate()
 
-    def _updateInputObserver(self, caller=None, event=None) -> None:
+    def _updateNodeObserver(self, caller=None, event=None) -> None:
         print('parameterNodeUpdate')
         # print(caller)
-        print(event)
 
         eventList = [
             vtkMRMLMarkupsNode.PointPositionDefinedEvent,
@@ -305,6 +307,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         self._checkCanApply(caller=caller, event=event)
         self._checkCanPreprocess(caller=caller, event=event)
         self._checkCanCreateHeartRoi(caller=caller, event=event)
+        self._updateNodeObserver(caller=caller, event=event)
 
     def _checkCanApply(self, caller=None, event=None) -> None:
         if (
@@ -374,6 +377,11 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         # state = self.ui.volumeRoiLockButton.checkState()
         logging.debug(f'volumeRoiLockButton state: {state}')
+
+    def onAdjustVolumeDisplayButtonClicked(self) -> None:
+        if self._parameterNode and self._parameterNode.inputVolume:
+            self.logic.adjustVolumeDisplay(self._parameterNode.inputVolume)
+
 
 
 #
@@ -483,7 +491,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         outputVolume.CreateDefaultDisplayNodes()
         outputVolume.CreateDefaultStorageNode()
 
-    def fitHeartRoiNode(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode):
+    def fitHeartRoiNode(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode) -> None:
         roiNode.GetDisplayNode().SetFillVisibility(False)
 
         # fit roi
@@ -493,6 +501,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.modules.cropvolume.logic().SnapROIToVoxelGrid(cropVolumeParameters)  # optional (rotates the ROI to match the volume axis directions)
         slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
         slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+
+    def adjustVolumeDisplay(self, volumeNode: vtkMRMLScalarVolumeNode) -> None:
+        displayNode = volumeNode.GetDisplayNode()
+        displayNode.SetDefaultColorMap()
+        displayNode.SetInterpolate(1)
+        displayNode.ApplyThresholdOff()
+        displayNode.AutoWindowLevelOff()
+        displayNode.SetWindowLevel(1400, 50)
 
     def processMarkers(
             self,
