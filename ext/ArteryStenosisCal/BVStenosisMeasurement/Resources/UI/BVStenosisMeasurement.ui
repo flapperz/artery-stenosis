@@ -86,7 +86,7 @@
          <string>Heart ROI</string>
         </property>
         <property name="editEnabled">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="renameEnabled">
          <bool>false</bool>
@@ -123,7 +123,7 @@
          <bool>true</bool>
         </property>
         <property name="editEnabled">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="renameEnabled">
          <bool>true</bool>
