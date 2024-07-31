@@ -88,7 +88,6 @@ class BVStenosisMeasurementParameterNode:
     #
     # internal
     #
-    _roi: vtkMRMLMarkupsROINode
     _guideLine: vtkMRMLMarkupsCurveNode
     _processedVolume: vtkMRMLScalarVolumeNode
 
@@ -202,13 +201,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # initialize internal parameter
         #
 
-        internal_prefix = "BVInternal:"
         internal_tmp_prefix = "BVInternal:DO_NOT_USE"
-
-        if not self._parameterNode._roi:
-            roiNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode')
-            roiNode.SetName(f"{internal_prefix} Heart Region")
-            self._parameterNode._roi = roiNode
 
         if not self._parameterNode._guideLine:
             guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
