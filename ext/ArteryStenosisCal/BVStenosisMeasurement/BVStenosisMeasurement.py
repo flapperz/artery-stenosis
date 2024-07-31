@@ -144,7 +144,10 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # Buttons
         # connected signal is not reload
         self.ui.heartRoiSelector.connect(
-            'nodeAddedByUser(vtkMRMLNode*)', self.onHeartRoiSelectorNodeAdded
+            'nodeAddedByUser(vtkMRMLNode*)',
+            lambda node: self.logic.fitHeartRoiNode(
+                self._parameterNode.inputVolume, node
+            ),
         )
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
         self.ui.volumeRoiLockButton.connect('stateChanged(int)', self.onVolumeRoiLockButtonClicked)
@@ -332,17 +335,6 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self.ui.volumeRoiLockButton.enabled = False
             self.ui.volumeRoiLockButton.setChecked(False)
 
-    def onHeartRoiSelectorNodeAdded(self, heartRoiNode: vtkMRMLMarkupsROINode):
-        heartRoiNode.GetDisplayNode().SetFillVisibility(False)
-
-        volumeNode = self._parameterNode.inputVolume
-        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLCropVolumeParametersNode")
-        cropVolumeParameters.SetInputVolumeNodeID(volumeNode.GetID())
-        cropVolumeParameters.SetROINodeID(heartRoiNode.GetID())
-        slicer.modules.cropvolume.logic().SnapROIToVoxelGrid(cropVolumeParameters)  # optional (rotates the ROI to match the volume axis directions)
-        slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
-        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
-
     def onApplyButtonClicked(self) -> None:
         """Run processing when user clicks "Apply" button."""
         with slicer.util.tryWithErrorDisplay(
@@ -490,7 +482,17 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         outputVolume.SetAndObserveImageData(imageData)
         outputVolume.CreateDefaultDisplayNodes()
         outputVolume.CreateDefaultStorageNode()
-        return
+
+    def fitHeartRoiNode(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode):
+        roiNode.GetDisplayNode().SetFillVisibility(False)
+
+        # fit roi
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLCropVolumeParametersNode")
+        cropVolumeParameters.SetInputVolumeNodeID(volumeNode.GetID())
+        cropVolumeParameters.SetROINodeID(roiNode.GetID())
+        slicer.modules.cropvolume.logic().SnapROIToVoxelGrid(cropVolumeParameters)  # optional (rotates the ROI to match the volume axis directions)
+        slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
 
     def processMarkers(
             self,
