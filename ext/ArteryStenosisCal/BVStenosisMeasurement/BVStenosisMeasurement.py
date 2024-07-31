@@ -167,6 +167,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self.removeObserver(
                 self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply
             )
+            self.removeObserver(
+                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._updateInputObserver
+            )
 
     def onSceneStartClose(self, caller, event) -> None:
         """Called just before the scene is closed."""
