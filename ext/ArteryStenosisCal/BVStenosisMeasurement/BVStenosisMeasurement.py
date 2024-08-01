@@ -8,6 +8,7 @@ import slicer
 import slicer.util
 import vtk
 from BVStenosisMeasurementLib import MRMLUtils
+from BVStenosisMeasurementLib.BVConstants import BVTextConst
 from slicer import (
     vtkMRMLMarkupsCurveNode,
     vtkMRMLMarkupsFiducialNode,
@@ -209,14 +210,15 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # initialize internal parameter
         #
 
-        internal_tmp_prefix = "BVInternal:DO_NOT_USE"
-
         if not self._parameterNode._guideLine:
             guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
-            guideLine.SetName(f"{internal_tmp_prefix} guideLine")
+            guideLine.SetName(f"{BVTextConst.internal_node_prefix} guideLine")
             self._parameterNode._guideLine = guideLine
 
         if not self._parameterNode._processedVolume and self._parameterNode.inputVolume:
+            processedVolumeName = f"{BVTextConst.internal_node_prefix} processedVolume"
+            processedVolume = self.logic.createEmptyVolume(processedVolumeName)
+            self._parameterNode._processedVolume = processedVolume
             # self.logic.createProcessedVolume(self._parameterNode.inputVolume, self._parameterNode._processedVolume)
             pass
 
@@ -368,9 +370,10 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute results.', waitCursor=True
         ):
-            self.logic.createProcessedVolume(
-                self._parameterNode.inputVolume, self._parameterNode.thresholdedVolume
-            )
+            # self.logic.createProcessedVolume(
+            #     self._parameterNode.inputVolume, self._parameterNode.thresholdedVolume
+            # )
+            pass
             # self.logic.processMarkers(
             #     self._parameterNode.inputVolume,
             #     self._parameterNode.markers,
@@ -407,14 +410,23 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         heartRoiDisplay = heartRoiNode.GetDisplayNode()
         if isChecked:
-            # validate bound + size
-
             # lock
             heartRoiNode.SetLocked(True)
             heartRoiDisplay.SetScaleHandleVisibility(False)
             heartRoiDisplay.SetTranslationHandleVisibility(False)
             self.ui.heartRoiSelector.enabled = False
             self.ui.inputVolumeSelector.enabled = False
+
+            if self._parameterNode and not self._parameterNode._processedVolume:
+                processedVolumeName = f"{BVTextConst.internal_node_prefix} processedVolume"
+                processedVolume = self.logic.createEmptyVolume(processedVolumeName)
+                self._parameterNode._processedVolume = processedVolume
+
+            self.logic.createProcessedVolume(
+                self._parameterNode.inputVolume,
+                self._parameterNode.heartRoi,
+                self._parameterNode._processedVolume,
+            )
         else:
             # unlock
             heartRoiNode.SetLocked(False)
@@ -516,13 +528,53 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         if cliNode.GetStatus() & cliNode.Cancelled:
             slicer.mrmlScene.RemoveNode(cliNode)
 
-    def createProcessedVolume(self, inputVolume: vtkMRMLScalarVolumeNode, outputVolume: vtkMRMLScalarVolumeNode):
-        # input volume is created
+    def createProcessedVolume(self, inputVolume: vtkMRMLScalarVolumeNode,  heartRoi: vtkMRMLMarkupsROINode, processedVolume: vtkMRMLScalarVolumeNode):
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLCropVolumeParametersNode'
         )
-        slicer.modules.cropvolume.logic()
+        cropVolumeParameters.SetInputVolumeNodeID(inputVolume.GetID())
+        cropVolumeParameters.SetROINodeID(heartRoi.GetID())
+        cropVolumeParameters.SetOutputVolumeNodeID(processedVolume.GetID())
+        cropVolumeParameters.SetInterpolationMode(
+            cropVolumeParameters.InterpolationLinear
+        )
+        cropVolumeParameters.SetVoxelBased(False) # Interpolated Cropping
+        cropVolumeParameters.SetSpacingScalingConst(0.4)
+        cropVolumeParameters.SetIsotropicResampling(True)
+        slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
         pass
+
+    def createCopyVolume(self, inputVolume: vtkMRMLScalarVolumeNode, name: str) -> vtkMRMLScalarVolumeNode:
+        imageDimensions = inputVolume.GetImageData().GetDimensions()
+        voxelType = vtk.VTK_DOUBLE
+        # voxelType = inputVolume.GetImageData().GetScalarType() # dicom is vtk.VTK_INT
+        imageOrigin = inputVolume.GetImageData().GetOrigin()
+        imageSpacing = inputVolume.GetImageData().GetSpacing()
+        fillVoxelValue = 0
+        volumeToRAS = inputVolume.GetImageData().GetDirectionMatrix()
+        imageDirections = MRMLUtils.vtk3x3matrix2numpy(volumeToRAS)
+
+        imageData = vtk.vtkImageData()
+        imageData.SetDimensions(imageDimensions)
+        imageData.AllocateScalars(voxelType, 1)
+        imageData.GetPointData().GetScalars().Fill(fillVoxelValue)
+
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", name)
+        outputVolume.SetOrigin(imageOrigin)
+        outputVolume.SetSpacing(imageSpacing)
+        outputVolume.SetIJKToRASDirections(imageDirections)
+        outputVolume.SetAndObserveImageData(imageData)
+        outputVolume.CreateDefaultDisplayNodes()
+        outputVolume.CreateDefaultStorageNode()
+        return outputVolume
+
+    def createEmptyVolume(self, name: str) -> vtkMRMLScalarVolumeNode:
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", name)
+        outputVolume.CreateDefaultDisplayNodes()
+        outputVolume.CreateDefaultStorageNode()
+        return outputVolume
+
 
     def fitHeartRoiNode(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode) -> None:
         roiNode.GetDisplayNode().SetFillVisibility(False)
