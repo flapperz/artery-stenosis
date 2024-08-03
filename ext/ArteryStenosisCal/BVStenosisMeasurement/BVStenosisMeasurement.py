@@ -45,16 +45,12 @@ class BVStenosisMeasurement(ScriptedLoadableModule):
         self.parent.title = 'BV Stenosis Measurement'
         self.parent.categories = ['Chula BV']
         self.parent.dependencies = ['BVCreateGuideLine']
-        self.parent.contributors = ['John Doe (AnyWare Corp.)']
+        self.parent.contributors = ['Krit Cholapand (Chulalongkorn University)']
         self.parent.helpText = f"""
     Artery Stenosis Measurement version {self.version}. Documentation is available
     <a href="https://github.com/flapperz/artery-stenosis">here</a>.
     """
-        # TODO: replace with organization, grant and thanks
-        self.parent.acknowledgementText = """
-This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
-and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
-"""
+        self.parent.acknowledgementText = """TODO: ACKNOWLEDGEMENT"""
 
         # Additional initialization step after application startup is complete
         # slicer.app.connect("startupCompleted()", registerSampleData)
