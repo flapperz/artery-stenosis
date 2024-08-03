@@ -31,6 +31,7 @@ include(${Slicer_USE_FILE})
 # add_subdirectory(DefaultPythonMod)
 add_subdirectory(BVCreateGuideLine)
 add_subdirectory(BVStenosisMeasurement)
+add_subdirectory(BVPreprocessVolume)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
