@@ -557,7 +557,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         imageData.AllocateScalars(voxelType, 1)
         imageData.GetPointData().GetScalars().Fill(fillVoxelValue)
 
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", name)
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        outputVolume.SetName(name)
         outputVolume.SetOrigin(imageOrigin)
         outputVolume.SetSpacing(imageSpacing)
         outputVolume.SetIJKToRASDirections(imageDirections)
@@ -567,7 +568,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         return outputVolume
 
     def createEmptyVolume(self, name: str) -> vtkMRMLScalarVolumeNode:
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", name)
+
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        outputVolume.SetName(name)
         outputVolume.CreateDefaultDisplayNodes()
         outputVolume.CreateDefaultStorageNode()
         return outputVolume
