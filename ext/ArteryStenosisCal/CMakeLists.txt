@@ -32,6 +32,7 @@ include(${Slicer_USE_FILE})
 add_subdirectory(BVCreateGuideLine)
 add_subdirectory(BVStenosisMeasurement)
 add_subdirectory(BVPreprocessVolume)
+add_subdirectory(BVAirSegmentation)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
