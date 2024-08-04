@@ -76,7 +76,7 @@ class BVStenosisMeasurementParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
-    heartRoi: vtkMRMLMarkupsROINode
+    costVolume: vtkMRMLScalarVolumeNode
     markers: vtkMRMLMarkupsFiducialNode
 
     imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
@@ -143,12 +143,6 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # connected signal is not reload
 
         # input is validated via _checkCanCreateHeartRoi
-        self.ui.heartRoiSelector.connect(
-            'nodeAddedByUser(vtkMRMLNode*)',
-            lambda node: self.logic.fitHeartRoiNode(
-                self._parameterNode.inputVolume, node
-            ),
-        )
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
         self.ui.adjustVolumeDisplayButton.connect('clicked(bool)', self.onAdjustVolumeDisplayButtonClicked)
 
@@ -262,7 +256,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # TODO: check can apply
         if self._parameterNode.inputVolume and self._parameterNode.markers.GetNumberOfControlPoints() > 1:
             self.logic.processMarkers(
-                self._parameterNode.inputVolume,
+                self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode._guideLine
             )
