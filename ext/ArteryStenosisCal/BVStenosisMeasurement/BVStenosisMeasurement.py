@@ -10,10 +10,10 @@ import vtk
 from BVStenosisMeasurementLib import MRMLUtils
 from BVStenosisMeasurementLib.BVConstants import BVTextConst
 from slicer import (
+    vtkMRMLCommandLineModuleNode,
     vtkMRMLMarkupsCurveNode,
     vtkMRMLMarkupsFiducialNode,
     vtkMRMLMarkupsNode,
-    vtkMRMLMarkupsROINode,
     vtkMRMLScalarVolumeNode,
 )
 from slicer.parameterNodeWrapper import (
@@ -428,7 +428,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
         self.createGuideLineCliNode = self._startProcessMarkers(processedVolume, markers)
-        self.createGuideLineCliNode.AddObserver('ModifiedEvent', self._onProcessMarkersUpdate)
+        self.createGuideLineCliNode.AddObserver(vtkMRMLCommandLineModuleNode.StatusModifiedEvent, self._onProcessMarkersUpdate)
 
     def process(
         self,
