@@ -412,6 +412,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
+        # crop
+
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLCropVolumeParametersNode'
         )
@@ -426,6 +428,17 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         cropVolumeParameters.SetIsotropicResampling(True)
         slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
         slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+
+        # threshold
+
+        COST_OFFSET = 4000
+        AIR_THRESHOLD = -50
+
+        volArray = slicer.util.arrayFromVolume(costVolume).copy()
+        volArray[volArray > AIR_THRESHOLD] = 2_000_000_000
+        volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
+
+        slicer.util.updateVolumeFromArray(costVolume, volArray)
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')

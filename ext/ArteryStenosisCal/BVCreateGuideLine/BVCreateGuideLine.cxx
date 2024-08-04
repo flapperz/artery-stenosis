@@ -105,7 +105,6 @@ namespace
             int dist_uv = 1;
             // process
             double v_value = image->GetPixel(v_idx);
-            v_value = v_value > -50 ? 2000000000 : v_value + 4000;
 
             double curr_cost = dist_uv * v_value;
             double dist = u_dist + curr_cost;
