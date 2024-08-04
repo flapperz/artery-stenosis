@@ -360,7 +360,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             for i in range(markers.GetNumberOfControlPoints())
         ]
         flattenMarkers = [x for ijk in markersIJK for x in ijk]
-        print("input flattenMarkers:", flattenMarkers)
+        logging.debug(f"input flattenMarkers: {flattenMarkers}")
         parameter = {
             "inputVolume" : inputVolume,
             "inFlattenMarkersIJK" : flattenMarkers
@@ -370,35 +370,36 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         return cliNode
 
     def _onProcessMarkersUpdate(self, cliNode, event):
-        print("Got a %s from a %s" % (event, cliNode.GetClassName()))
-        if cliNode.IsA('vtkMRMLCommandLineModuleNode'):
-            print("Status is %s" % cliNode.GetStatusString())
+        # logging.debug("Got a %s from a %s : %s" % (event, cliNode.GetClassName(), cliNode.GetName()))
 
-        if cliNode.GetStatus() & cliNode.Completed:
-            if cliNode.GetStatus() & cliNode.ErrorsMask:
+        status = cliNode.GetStatus()
+
+        if status & cliNode.Completed:
+            if status & cliNode.ErrorsMask:
                 # error
                 errorText = cliNode.GetErrorText()
-                print("CLI execution failed: " + errorText)
+                logging.debug("CLI execution failed: " + errorText)
             else:
                 # success
                 outIJK = cliNode.GetParameterAsString("outFlattenMarkersIJK")
-                print("CLI execution succeeded. Output model node ID: "+outIJK)
+                logging.debug("CLI execution succeeded. Output model node ID: " + outIJK)
                 self.guideLineNode.RemoveAllControlPoints()
                 # TODO: refactor out create curve function
-                print("CLI output:", outIJK)
+                logging.debug(f"CLI output: {outIJK}")
                 outIJK = [int(x) for x in outIJK.split(',')]
                 # outKJI = flattenMarkers
 
                 pathKJI = []
-                print("out path length:", len(outIJK))
+                logging.debug(f"out path length: {len(outIJK)}")
                 for i in range(0, len(outIJK), 3):
                     pathKJI.append([outIJK[i+2], outIJK[i+1], outIJK[i]])
-                print("formatted:", pathKJI)
+                logging.debug(f"formatted: {pathKJI}")
                 MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
             slicer.mrmlScene.RemoveNode(cliNode)
         # TODO: better if-else
 
-        if cliNode.GetStatus() & cliNode.Cancelled:
+        if status & cliNode.Cancelled:
+
             slicer.mrmlScene.RemoveNode(cliNode)
 
     def adjustVolumeDisplay(self, volumeNode: vtkMRMLScalarVolumeNode) -> None:
