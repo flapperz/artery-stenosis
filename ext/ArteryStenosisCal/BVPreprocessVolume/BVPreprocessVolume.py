@@ -5,8 +5,8 @@ from typing import Optional
 import numpy as np
 import slicer
 import vtk
+from BVPreprocessVolumeLib.Constants import BVTextConst
 from slicer import (
-    vtkMRMLMarkupsNode,
     vtkMRMLMarkupsROINode,
     vtkMRMLNode,
     vtkMRMLScalarVolumeNode,
@@ -102,6 +102,9 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # Create logic class. Logic implements all computations that should be possible to run
         # in batch mode, without a graphical user interface.
         self.logic = BVPreprocessVolumeLogic()
+
+        # Extra Widget Setup
+        self.ui.costVolumeSelector.baseName = BVTextConst.costVolumePrefix
 
         # Connections
 
