@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>325</width>
-    <height>344</height>
+    <width>326</width>
+    <height>419</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -298,6 +298,26 @@
    </item>
    <item>
     <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QPushButton" name="prevStepButton">
+     <property name="text">
+      <string>&lt;- Go back to Preprocess</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer_2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>

@@ -145,6 +145,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # input is validated via _checkCanCreateHeartRoi
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
         self.ui.adjustVolumeDisplayButton.connect('clicked(bool)', self.onAdjustVolumeDisplayButtonClicked)
+        self.ui.prevStepButton.connect('clicked(bool)', self.onPrevStepButton)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -315,6 +316,10 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
         if self._parameterNode and self._parameterNode.inputVolume:
             self.logic.adjustVolumeDisplay(self._parameterNode.inputVolume)
+
+    def onPrevStepButton(self) -> None:
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule('BVPreprocessVolume')
 
 
 #
