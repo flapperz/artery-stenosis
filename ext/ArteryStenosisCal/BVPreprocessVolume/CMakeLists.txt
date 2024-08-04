@@ -5,6 +5,9 @@ set(MODULE_NAME BVPreprocessVolume)
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
   )
+file(GLOB MODULE_LIB_PYTHON_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}Lib/*.py")
+foreach(python_script ${MODULE_LIB_PYTHON_SCRIPTS})
+  list(APPEND MODULE_PYTHON_SCRIPTS ${python_script})
 
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png

@@ -1,17 +1,24 @@
 import logging
 import os
-from typing import Annotated, Optional
+from typing import Optional
 
+import numpy as np
 import slicer
 import vtk
-from slicer import vtkMRMLScalarVolumeNode
-from slicer.i18n import tr as _
-from slicer.i18n import translate
+from slicer import (
+    vtkMRMLMarkupsNode,
+    vtkMRMLMarkupsROINode,
+    vtkMRMLNode,
+    vtkMRMLScalarVolumeNode,
+)
 from slicer.parameterNodeWrapper import (
-    WithinRange,
     parameterNodeWrapper,
 )
-from slicer.ScriptedLoadableModule import *
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleWidget,
+)
 from slicer.util import VTKObservationMixin
 
 #
@@ -39,56 +46,6 @@ class BVPreprocessVolume(ScriptedLoadableModule):
 
 
 #
-# Register sample data sets in Sample Data module
-#
-
-
-def registerSampleData():
-    """Add data sets to Sample Data module."""
-    # It is always recommended to provide sample data for users to make it easy to try the module,
-    # but if no sample data is available then this method (and associated startupCompeted signal connection) can be removed.
-
-    import SampleData
-
-    iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
-
-    # To ensure that the source code repository remains small (can be downloaded and installed quickly)
-    # it is recommended to store data sets that are larger than a few MB in a Github release.
-
-    # BVPreprocessVolume1
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        # Category and sample name displayed in Sample Data module
-        category="BVPreprocessVolume",
-        sampleName="BVPreprocessVolume1",
-        # Thumbnail should have size of approximately 260x280 pixels and stored in Resources/Icons folder.
-        # It can be created by Screen Capture module, "Capture all views" option enabled, "Number of images" set to "Single".
-        thumbnailFileName=os.path.join(iconsPath, "BVPreprocessVolume1.png"),
-        # Download URL and target file name
-        uris="https://github.com/Slicer/SlicerTestingData/releases/download/SHA256/998cb522173839c78657f4bc0ea907cea09fd04e44601f17c82ea27927937b95",
-        fileNames="BVPreprocessVolume1.nrrd",
-        # Checksum to ensure file integrity. Can be computed by this command:
-        #  import hashlib; print(hashlib.sha256(open(filename, "rb").read()).hexdigest())
-        checksums="SHA256:998cb522173839c78657f4bc0ea907cea09fd04e44601f17c82ea27927937b95",
-        # This node name will be used when the data set is loaded
-        nodeNames="BVPreprocessVolume1",
-    )
-
-    # BVPreprocessVolume2
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        # Category and sample name displayed in Sample Data module
-        category="BVPreprocessVolume",
-        sampleName="BVPreprocessVolume2",
-        thumbnailFileName=os.path.join(iconsPath, "BVPreprocessVolume2.png"),
-        # Download URL and target file name
-        uris="https://github.com/Slicer/SlicerTestingData/releases/download/SHA256/1a64f3f422eb3d1c9b093d1a18da354b13bcf307907c66317e2463ee530b7a97",
-        fileNames="BVPreprocessVolume2.nrrd",
-        checksums="SHA256:1a64f3f422eb3d1c9b093d1a18da354b13bcf307907c66317e2463ee530b7a97",
-        # This node name will be used when the data set is loaded
-        nodeNames="BVPreprocessVolume2",
-    )
-
-
-#
 # BVPreprocessVolumeParameterNode
 #
 
@@ -106,11 +63,8 @@ class BVPreprocessVolumeParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
-    imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
-    invertThreshold: bool = False
-    thresholdedVolume: vtkMRMLScalarVolumeNode
-    invertedVolume: vtkMRMLScalarVolumeNode
-
+    heartRoi: vtkMRMLMarkupsROINode
+    costVolume: vtkMRMLScalarVolumeNode
 
 #
 # BVPreprocessVolumeWidget
@@ -155,6 +109,11 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
+        # input is validated via _checkCanCreateHeartRoi
+        self.ui.heartROISelector.connect(
+            'nodeAddedByUser(vtkMRMLNode*)',
+            self.fitInputHeartRoiNodeToVolume
+        )
         # Buttons
         self.ui.applyButton.connect("clicked(bool)", self.onApplyButton)
 
@@ -170,13 +129,18 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # Make sure parameter node exists and observed
         self.initializeParameterNode()
 
+        # Update roi widget and refresh parameter node
+        self._onParameterUpdate()
+
     def exit(self) -> None:
         """Called each time the user opens a different module."""
         # Do not react to parameter node changes (GUI will be updated when the user enters into the module)
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self._parameterNodeGuiTag = None
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._onParameterUpdate)
+            # clean up each node interactive observer before exit
+            self._cleanUpInputNodeObserver()
 
     def onSceneStartClose(self, caller, event) -> None:
         """Called just before the scene is closed."""
@@ -210,35 +174,99 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._onParameterUpdate)
+            self._cleanUpInputNodeObserver()
         self._parameterNode = inputParameterNode
         if self._parameterNode:
             # Note: in the .ui file, a Qt dynamic property called "SlicerParameterName" is set on each
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
-            self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
-            self._checkCanApply()
+            self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._onParameterUpdate)
+
+    def fitInputHeartRoiNodeToVolume(self):
+        if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.heartRoi:
+            self.logic.fitHeartRoiNode(self._parameterNode.inputVolume, self._parameterNode.heartRoi)
+
+    def _onParameterUpdate(self, caller=None, event=None) -> None:
+        self._checkCanApply(caller=caller, event=event)
+        self._setROIWidget(caller=caller, event=event)
+        self._checkCanCreateHeartRoi(caller=caller, event=event)
+        # self._refreshInputNodeObserver(
+        #     self._parameterNode.heartRoi,
+        #     vtkMRMLMarkupsNode.PointModifiedEvent,
+        #     self.onHeartROIUpdate,
+        # )
+
+    def _cleanUpInputNodeObserver(self):
+        # Should mirror all _refreshInputNodeObserver call
+        # self._removeInputNodeObserver(
+        #     vtkMRMLMarkupsNode.PointModifiedEvent,
+        #     self.onHeartROIUpdate
+        # )
+        pass
+
+    def _checkCanCreateHeartRoi(self, caller=None, event=None) -> None:
+        if (self._parameterNode and self._parameterNode.inputVolume):
+            self.ui.heartROISelector.addEnabled = True
+        else:
+            self.ui.heartROISelector.addEnabled = False
+
+    def _setROIWidget(self, caller=None, event=None) -> None:
+        if self._parameterNode and self._parameterNode.heartRoi:
+            self.ui.MRMLMarkupsROIWidget.setMRMLMarkupsNode(self._parameterNode.heartRoi)
+        else:
+            self.ui.MRMLMarkupsROIWidget.setMRMLMarkupsNode(None)
 
     def _checkCanApply(self, caller=None, event=None) -> None:
-        if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.thresholdedVolume:
-            self.ui.applyButton.toolTip = _("Compute output volume")
+        if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.heartRoi and self._parameterNode.costVolume:
+            self.ui.applyButton.toolTip = "Compute preprocessed volume as cost volume"
             self.ui.applyButton.enabled = True
-        else:
-            self.ui.applyButton.toolTip = _("Select input and output volume nodes")
-            self.ui.applyButton.enabled = False
+            return
+        self.ui.applyButton.toolTip = "Select input volume, heart ROI and output volume nodes"
+        self.ui.applyButton.enabled = False
+
+    def _refreshInputNodeObserver(
+        self, node: Optional[vtkMRMLNode], eventList, callback
+    ):
+        # https://apidocs.slicer.org/master/classvtkMRMLMarkupsNode.html#aceeef8806df28e3807988c38510e56caad628dfaf54f410d2f4c6bc5800aa8a30
+        if not isinstance(eventList, list):
+            eventList = [eventList]
+
+        self._removeInputNodeObserver(eventList, callback)
+
+        for e in eventList:
+            if node is not None:
+                print(f"{self.moduleName} ADD observer from:", node.GetName(), " : ", node.GetID())
+                self.addObserver(node, e, callback)
+
+    def _removeInputNodeObserver(self, eventList, callback):
+        if not isinstance(eventList, list):
+            eventList = [eventList]
+
+        for e in eventList:
+            prevNode = self.observer(e, callback)
+            if prevNode is not None:
+                logging.debug(f"{self.moduleName} Remove observer from:", prevNode.GetName(), ":", prevNode.GetID())
+                # prevMarkersNodeName = prevMarkersNode.GetName()
+                self.removeObserver(prevNode, e, callback)
+
+    # def onHeartROIUpdate(self, caller=None, event=None):
+    #     if (self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.heartRoi):
+    #         canApply = self.logic.validateHeartROI(self._parameterNode.inputVolume, self._parameterNode.heartRoi)
+    #         print('on heart roi update:', canApply)
 
     def onApplyButton(self) -> None:
         """Run processing when user clicks "Apply" button."""
-        with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
-            # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(), self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value, self.ui.invertOutputCheckBox.checked)
+        with slicer.util.tryWithErrorDisplay("Failed to compute results.", waitCursor=True):
 
-            # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
+            inputVolume = self._parameterNode.inputVolume
+            heartRoi = self._parameterNode.heartRoi
+            costVolume = self._parameterNode.costVolume
+            if self.logic.validateHeartROI(inputVolume, heartRoi):
+                self.logic.process(inputVolume, heartRoi, costVolume)
+            else:
+                e = 'ROI is bigger than input volume or too big (15mm * 15mm * 15mm)'
+                slicer.util.errorDisplay("Failed to compute results: "+str(e))
 
 
 #
@@ -263,12 +291,44 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
     def getParameterNode(self):
         return BVPreprocessVolumeParameterNode(super().getParameterNode())
 
-    def process(self,
-                inputVolume: vtkMRMLScalarVolumeNode,
-                outputVolume: vtkMRMLScalarVolumeNode,
-                imageThreshold: float,
-                invert: bool = False,
-                showResult: bool = True) -> None:
+    def fitHeartRoiNode(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode) -> None:
+        # roiNode.GetDisplayNode().SetFillVisibility(False)
+
+        # fit roi
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLCropVolumeParametersNode'
+        )
+        cropVolumeParameters.SetInputVolumeNodeID(volumeNode.GetID())
+        cropVolumeParameters.SetROINodeID(roiNode.GetID())
+        slicer.modules.cropvolume.logic().SnapROIToVoxelGrid(cropVolumeParameters)  # optional (rotates the ROI to match the volume axis directions)
+        slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+
+    def validateHeartROI(self, volumeNode: vtkMRMLScalarVolumeNode, roiNode: vtkMRMLMarkupsROINode) -> bool:
+        roiBound = np.zeros(6)
+        volumeBound = np.zeros(6)
+        roiNode.GetRASBounds(roiBound)
+        volumeNode.GetRASBounds(volumeBound)
+        minIdx = [0,2,4]
+        maxIdx = [1,3,5]
+        isBound = np.all(roiBound[minIdx] > volumeBound[minIdx]) and np.all(roiBound[maxIdx] < volumeBound[maxIdx])
+
+        sizesMM = roiBound[maxIdx] - roiBound[minIdx]
+        maxSizesMM = np.array([150,150,150])
+        # roiVolumeMM3 = sizesMM[0] * sizesMM[1] * sizesMM[2]
+        # logging.debug(f"validate roi: roi volume (mm^3)= {roiVolumeMM3}")
+        isNotTooBig = np.all(sizesMM < maxSizesMM)
+        logging.debug(f'{isBound=} {isNotTooBig=} {sizesMM=}')
+        result = isBound and isNotTooBig
+
+        return result
+
+    def process(
+        self,
+        inputVolume: vtkMRMLScalarVolumeNode,
+        heartRoi: vtkMRMLMarkupsROINode,
+        costVolume: vtkMRMLScalarVolumeNode,
+    ) -> None:
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -279,7 +339,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         :param showResult: show output volume in slice viewers
         """
 
-        if not inputVolume or not outputVolume:
+        if not inputVolume or not costVolume:
             raise ValueError("Input or output volume is invalid")
 
         import time
@@ -287,85 +347,20 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         startTime = time.time()
         logging.info("Processing started")
 
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            "InputVolume": inputVolume.GetID(),
-            "OutputVolume": outputVolume.GetID(),
-            "ThresholdValue": imageThreshold,
-            "ThresholdType": "Above" if invert else "Below",
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLCropVolumeParametersNode'
+        )
+        cropVolumeParameters.SetInputVolumeNodeID(inputVolume.GetID())
+        cropVolumeParameters.SetROINodeID(heartRoi.GetID())
+        cropVolumeParameters.SetOutputVolumeNodeID(costVolume.GetID())
+        cropVolumeParameters.SetInterpolationMode(
+            cropVolumeParameters.InterpolationLinear
+        )
+        cropVolumeParameters.SetVoxelBased(False) # Interpolated Cropping
+        cropVolumeParameters.SetSpacingScalingConst(0.4)
+        cropVolumeParameters.SetIsotropicResampling(True)
+        slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
 
         stopTime = time.time()
         logging.info(f"Processing completed in {stopTime-startTime:.2f} seconds")
-
-
-#
-# BVPreprocessVolumeTest
-#
-
-
-class BVPreprocessVolumeTest(ScriptedLoadableModuleTest):
-    """
-    This is the test case for your scripted module.
-    Uses ScriptedLoadableModuleTest base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
-
-    def setUp(self):
-        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
-        slicer.mrmlScene.Clear()
-
-    def runTest(self):
-        """Run as few or as many tests as needed here."""
-        self.setUp()
-        self.test_BVPreprocessVolume1()
-
-    def test_BVPreprocessVolume1(self):
-        """Ideally you should have several levels of tests.  At the lowest level
-        tests should exercise the functionality of the logic with different inputs
-        (both valid and invalid).  At higher levels your tests should emulate the
-        way the user would interact with your code and confirm that it still works
-        the way you intended.
-        One of the most important features of the tests is that it should alert other
-        developers when their changes will have an impact on the behavior of your
-        module.  For example, if a developer removes a feature that you depend on,
-        your test should break so they know that the feature is needed.
-        """
-
-        self.delayDisplay("Starting the test")
-
-        # Get/create input data
-
-        import SampleData
-
-        registerSampleData()
-        inputVolume = SampleData.downloadSample("BVPreprocessVolume1")
-        self.delayDisplay("Loaded test data set")
-
-        inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(inputScalarRange[0], 0)
-        self.assertEqual(inputScalarRange[1], 695)
-
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-        threshold = 100
-
-        # Test the module logic
-
-        logic = BVPreprocessVolumeLogic()
-
-        # Test algorithm with non-inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, True)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], threshold)
-
-        # Test algorithm with inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, False)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], inputScalarRange[1])
-
-        self.delayDisplay("Test passed")
