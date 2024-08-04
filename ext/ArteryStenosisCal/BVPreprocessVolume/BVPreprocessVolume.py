@@ -312,6 +312,7 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             costVolume = self._parameterNode.costVolume
             if self.logic.validateHeartROI(inputVolume, heartRoi):
                 self.logic.process(inputVolume, heartRoi, costVolume)
+                self.ui.MRMLMarkupsROIWidget.setInteractiveMode(False)
             else:
                 e = 'ROI is bigger than input volume or too big (15mm * 15mm * 15mm)'
                 slicer.util.errorDisplay('Failed to compute results: ' + str(e))
@@ -402,6 +403,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         startTime = time.time()
         logging.info('Processing started')
+
+        heartRoi.GetDisplayNode().SetFillVisibility(False)
 
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLCropVolumeParametersNode'
