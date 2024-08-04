@@ -122,6 +122,7 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         )
         # Buttons
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
+        self.ui.nextStepButton.connect('clicked(bool)', self.onNextStepButton)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -316,6 +317,11 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             else:
                 e = 'ROI is bigger than input volume or too big (15mm * 15mm * 15mm)'
                 slicer.util.errorDisplay('Failed to compute results: ' + str(e))
+
+    def onNextStepButton(self) -> None:
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule('BVStenosisMeasurement')
+
 
 
 #
