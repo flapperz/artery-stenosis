@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 import slicer
 import vtk
-from BVPreprocessVolumeLib.Constants import BVTextConst
+from BVPreprocessVolumeLib.BVPVConstants import BVTextConst
 from slicer import (
     vtkMRMLMarkupsROINode,
     vtkMRMLNode,
