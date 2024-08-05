@@ -429,16 +429,28 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
         slicer.mrmlScene.RemoveNode(cropVolumeParameters)
 
+        volArray: np.array = slicer.util.arrayFromVolume(costVolume).copy()
+        logging.debug(f'Type of input {inputVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
+        AIR_THRESHOLD = -150
+
+        # apply polynomial
+        coef = [-3.912e-1, 2.689e0, 5.395e-3, 3.706e-6]
+        volArray = np.polynomial.polynomial.polyval(
+            volArray, coef
+        )
+        volArray = volArray.astype(np.int32)
+        AIR_THRESHOLD = np.polynomial.polynomial.polyval(-150, coef)
+        print(f"{AIR_THRESHOLD=}")
+
         # threshold
 
         COST_OFFSET = 4000
-        AIR_THRESHOLD = -50
-
-        volArray = slicer.util.arrayFromVolume(costVolume).copy()
         volArray[volArray > AIR_THRESHOLD] = 2_000_000_000
         volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
 
+
         slicer.util.updateVolumeFromArray(costVolume, volArray)
+        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
