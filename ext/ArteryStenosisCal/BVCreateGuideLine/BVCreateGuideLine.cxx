@@ -64,6 +64,10 @@ namespace
 
     pq.insert({0, seed});
     dist_map[seed] = 0;
+    
+    const double CONST_SQRT2 = 1.41421356237;
+    const double CONST_SQRT3 = 1.73205080757;
+
 
     bool is_reach = false;
 
@@ -102,7 +106,18 @@ namespace
             v_idx[1] += vj;
             v_idx[2] += vk;
 
-            int dist_uv = 1;
+            double dist_uv = 1;
+            switch (abs(vi) + abs(vj) + abs(vk))
+            {
+            case 2:
+              dist_uv = CONST_SQRT2;
+              break;
+            case 3:
+              dist_uv = CONST_SQRT3;
+              break;
+            default:
+              break;
+            }
             // process
             double v_value = image->GetPixel(v_idx);
 
