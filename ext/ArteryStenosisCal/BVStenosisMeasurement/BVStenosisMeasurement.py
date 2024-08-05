@@ -359,7 +359,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
     def getParameterNode(self):
         return BVStenosisMeasurementParameterNode(super().getParameterNode())
 
-    def _startProcessMarkers(self, inputVolume, markers):
+    def _startProcessMarkers(self, costVolume, markers):
         markersIJK = [
             MRMLUtils.getFiducialAsIJK(markers, i, self.ras2ijkMat)
             for i in range(markers.GetNumberOfControlPoints())
@@ -367,7 +367,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         flattenMarkers = [x for ijk in markersIJK for x in ijk]
         logging.debug(f"input flattenMarkers: {flattenMarkers}")
         parameter = {
-            "inputVolume" : inputVolume,
+            "inputVolume" : costVolume,
             "inFlattenMarkersIJK" : flattenMarkers
         }
         BVCreateGuideLine = slicer.modules.bvcreateguideline
@@ -417,7 +417,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def processMarkers(
             self,
-            processedVolume: vtkMRMLScalarVolumeNode,
+            costVolume: vtkMRMLScalarVolumeNode,
             markers: vtkMRMLMarkupsFiducialNode,
             guideLine: vtkMRMLMarkupsCurveNode
     ) -> None:
@@ -427,13 +427,13 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         self.guideLineNode = guideLine
 
         x = vtk.vtkMatrix4x4()
-        processedVolume.GetIJKToRASMatrix(x)
+        costVolume.GetIJKToRASMatrix(x)
         self.ijk2rasMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
-        processedVolume.GetRASToIJKMatrix(x)
+        costVolume.GetRASToIJKMatrix(x)
         self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
-        self.createGuideLineCliNode = self._startProcessMarkers(processedVolume, markers)
+        self.createGuideLineCliNode = self._startProcessMarkers(costVolume, markers)
         self.createGuideLineCliNode.AddObserver(vtkMRMLCommandLineModuleNode.StatusModifiedEvent, self._onProcessMarkersUpdate)
 
     def process(
