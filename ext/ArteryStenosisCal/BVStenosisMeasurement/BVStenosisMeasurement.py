@@ -288,19 +288,22 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             # self.logic.createProcessedVolume(
             #     self._parameterNode.inputVolume, self._parameterNode.thresholdedVolume
             # )
-            pass
             # self.logic.processMarkers(
             #     self._parameterNode.inputVolume,
             #     self._parameterNode.markers,
             #     self._parameterNode._guideLine
             # )
             # # Compute output
-            # self.logic.process(
-            #     self.ui.inputVolumeSelector.currentNode(),
-            #     self.ui.outputSelector.currentNode(),
-            #     self.ui.imageThresholdSliderWidget.value,
-            #     self.ui.invertOutputCheckBox.checked,
-            # )
+            if not self._parameterNode or not self._parameterNode.inputVolume or not self._parameterNode.costVolume or not self._parameterNode._guideLine.GetNumberOfControlPoints() > 10:
+                e = "input invalid"
+                slicer.util.errorDisplay('Failed to compute results: ' + str(e))
+                return
+            self.logic.process(
+                self._parameterNode.inputVolume,
+                self._parameterNode.costVolume,
+                self._parameterNode.markers,
+                self._parameterNode._guideLine
+            )
 
             # # Compute inverted output (if needed)
             # if self.ui.invertedOutputSelector.currentNode():
@@ -439,10 +442,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
     def process(
         self,
         inputVolume: vtkMRMLScalarVolumeNode,
-        outputVolume: vtkMRMLScalarVolumeNode,
-        imageThreshold: float,
-        invert: bool = False,
-        showResult: bool = True,
+        costVolume: vtkMRMLScalarVolumeNode,
+        markers: vtkMRMLMarkupsFiducialNode,
+        guideLine: vtkMRMLMarkupsCurveNode
     ) -> None:
         """
         Run the processing algorithm.
@@ -454,8 +456,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         :param showResult: show output volume in slice viewers
         """
 
-        if not inputVolume or not outputVolume:
-            raise ValueError('Input or output volume is invalid')
+        # if not inputVolume or not outputVolume:
+        #     raise ValueError('Input or output volume is invalid')
 
         import time
 
@@ -464,22 +466,110 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
         # TODO: maybe we can reuse cliNode / parameter node
-        cliParams = {
-            'InputVolume': inputVolume.GetID(),
-            'OutputVolume': outputVolume.GetID(),
-            'ThresholdValue': imageThreshold,
-            'ThresholdType': 'Above' if invert else 'Below',
-        }
-        cliNode = slicer.cli.run(
-            slicer.modules.thresholdscalarvolume,
-            None,
-            cliParams,
-            wait_for_completion=True,
-            update_display=showResult,
-        )
+        # cliParams = {
+        #     'InputVolume': inputVolume.GetID(),
+        #     'OutputVolume': outputVolume.GetID(),
+        #     'ThresholdValue': imageThreshold,
+        #     'ThresholdType': 'Above' if invert else 'Below',
+        # }
+        # cliNode = slicer.cli.run(
+        #     slicer.modules.thresholdscalarvolume,
+        #     None,
+        #     cliParams,
+        #     wait_for_completion=True,
+        #     update_display=showResult,
+        # )
 
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
+        # # We don't need the CLI module node anymore, remove it to not clutter the scene with it
+        # slicer.mrmlScene.RemoveNode(cliNode)
+        mainWindow = slicer.util.mainWindow()
+
+        #
+        # --- Segmentation + extract centerline
+        #
+
+        slicer.util.setSliceViewerLayers(background=costVolume)
+        slicer.app.processEvents()
+        mainWindow.moduleSelector().selectModule('GuidedArterySegmentation')
+
+        vmtkSegWidget = slicer.modules.guidedarterysegmentation.widgetRepresentation().self()
+        vmtkSegLogic = vmtkSegWidget.logic
+        # TODO: not hard code slice node
+        sliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
+
+        # must be call before curve selector
+        vmtkSegWidget.ui.inputSliceNodeSelector.setCurrentNode(sliceNode)
+        vmtkSegWidget.ui.inputCurveSelector.setCurrentNode(guideLine)
+        vmtkSegWidget._parameterNode.inputIndensityTolerance = 100
+        # in mm.
+        vmtkSegWidget._parameterNode.neighbourhoodSize = 1.4
+        vmtkSegWidget._parameterNode.tubeDiameter = 2.0
+        vmtkSegWidget._parameterNode.extractCenterlines = True
+
+        vmtkSegWidget.ui.applyButton.click()
+
+        # set slice background back
+        slicer.util.setSliceViewerLayers(background=inputVolume)
+        slicer.app.processEvents()
+
+        #
+        # --- Cross Sectional Analysis
+        #
+
+        mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
+        slicer.app.processEvents()
+
+        segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
+        segmentID = "Segment_" + guideLine.GetID()
+        # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
+        shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+        exportFolderItemId = shNode.CreateFolderItem(shNode.GetSceneItemID(), "Segments_" + guideLine.GetID())
+        slicer.modules.segmentations.logic().ExportSegmentsToModels(segmentationNode, [segmentID], exportFolderItemId)
+        segmentModels = vtk.vtkCollection()
+        shNode.GetDataNodesInBranch(exportFolderItemId, segmentModels)
+        # Get exported model of first segment
+        modelNode = segmentModels.GetItemAsObject(0)
+        # print("fucker", type(modelNode))
+
+        crossSecWidget = slicer.modules.crosssectionanalysis.widgetRepresentation().self()
+        crossSecLogic = crossSecWidget.logic
+
+        centerlineNode = vmtkSegWidget._parameterNode.outputCenterlineCurve
+
+        crossSecWidget.ui.inputCenterlineSelector.setCurrentNode(centerlineNode)
+        crossSecWidget.ui.segmentationSelector.setCurrentNode(modelNode)
+        # crossSecWidget.ui.segmentationSelector.setCurrentNode(segmentationNode)
+        # crossSecWidget.ui.segmentSelector.setCurrentSegmentID(segmentID)
+
+        crossSecWidget.ui.applyButton.click()
+        slicer.app.processEvents()
+        redSliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
+        greenSliceNode = slicer.app.layoutManager().sliceWidget("Green").mrmlSliceNode()
+        crossSecWidget.ui.axialSliceViewSelector.setCurrentNode(redSliceNode)
+        crossSecWidget.ui.longitudinalSliceViewSelector.setCurrentNode(greenSliceNode)
+
+
+        with slicer.util.tryWithErrorDisplay(
+            'Failed to compute cross-section area.', waitCursor=True
+        ):
+            outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
+
+            cross_sec_area = slicer.util.arrayFromTableColumn(outTableNode, 'Cross-section area')
+            min_area = np.min(cross_sec_area)
+            max_area = np.max(cross_sec_area) # avg( max(proximal), max(distal) )
+            if max_area:
+                stenosis = 1 - (min_area / max_area)
+                stenosis_percent_str = f'{stenosis*100:.3f}'
+                slicer.util
+                print(f'{min_area=}, {max_area=}, {stenosis}:{stenosis_percent_str} %')
+                print(f'{min_area=} (mm^2)')
+                print(f'{max_area=} (mm^2)')
+                print(f'{stenosis=} %')
+                outInfo = f'Result!\n{min_area=:.3f} (mm^2)\n{max_area=:.3f} (mm^2)\nstenosis : {stenosis_percent_str}%'
+                slicer.util.infoDisplay(outInfo, self.moduleName)
+            else:
+                e = f'maximum area is zero {min_area=}, {max_area=}'
+                slicer.util.errorDisplay('Failed to compute stenosis: ' + str(e))
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
