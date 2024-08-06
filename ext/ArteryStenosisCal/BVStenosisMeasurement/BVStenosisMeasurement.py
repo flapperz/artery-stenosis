@@ -79,10 +79,7 @@ class BVStenosisMeasurementParameterNode:
     costVolume: vtkMRMLScalarVolumeNode
     markers: vtkMRMLMarkupsFiducialNode
 
-    imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
     invertThreshold: bool = False
-    thresholdedVolume: vtkMRMLScalarVolumeNode
-    invertedVolume: vtkMRMLScalarVolumeNode
 
     #
     # internal
