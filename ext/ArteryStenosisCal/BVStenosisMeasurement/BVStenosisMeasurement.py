@@ -253,11 +253,12 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         """Handle markers change case: move, add, change markups node, reorder ?"""
         # TODO: check can apply
         if self._parameterNode.inputVolume and self._parameterNode.markers.GetNumberOfControlPoints() > 1:
-            self.logic.processMarkers(
+            cliNode = self.logic.processMarkers(
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode._guideLine
             )
+            self.ui.CLIProgressBar.setCommandLineModuleNode(cliNode)
         logging.debug("in _onMarkersModified")
 
     def onParameterUpdate(self, caller=None, event=None):
@@ -420,7 +421,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             costVolume: vtkMRMLScalarVolumeNode,
             markers: vtkMRMLMarkupsFiducialNode,
             guideLine: vtkMRMLMarkupsCurveNode
-    ) -> None:
+    ) -> vtkMRMLCommandLineModuleNode:
         if self.createGuideLineCliNode:
             self.createGuideLineCliNode.Cancel()
 
@@ -435,6 +436,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         self.createGuideLineCliNode = self._startProcessMarkers(costVolume, markers)
         self.createGuideLineCliNode.AddObserver(vtkMRMLCommandLineModuleNode.StatusModifiedEvent, self._onProcessMarkersUpdate)
+        return self.createGuideLineCliNode
 
     def process(
         self,
