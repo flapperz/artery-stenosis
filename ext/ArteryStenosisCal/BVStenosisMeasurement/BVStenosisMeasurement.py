@@ -537,9 +537,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         centerlineNode = vmtkSegWidget._parameterNode.outputCenterlineCurve
 
         crossSecWidget.ui.inputCenterlineSelector.setCurrentNode(centerlineNode)
-        crossSecWidget.ui.segmentationSelector.setCurrentNode(modelNode)
-        # crossSecWidget.ui.segmentationSelector.setCurrentNode(segmentationNode)
-        # crossSecWidget.ui.segmentSelector.setCurrentSegmentID(segmentID)
+        # crossSecWidget.ui.segmentationSelector.setCurrentNode(modelNode)
+        crossSecWidget.ui.segmentationSelector.setCurrentNode(segmentationNode)
+        crossSecWidget.ui.segmentSelector.setCurrentSegmentID(segmentID)
 
         crossSecWidget.ui.applyButton.click()
         slicer.app.processEvents()
