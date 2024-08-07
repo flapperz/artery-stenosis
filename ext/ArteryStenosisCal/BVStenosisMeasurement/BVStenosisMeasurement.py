@@ -232,6 +232,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         eventList = [
             vtkMRMLMarkupsNode.PointPositionDefinedEvent,
             vtkMRMLMarkupsNode.PointEndInteractionEvent,
+            vtkMRMLMarkupsNode.PointRemovedEvent,
         ]
         markersNode = self._parameterNode.markers
 
