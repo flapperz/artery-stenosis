@@ -5,9 +5,11 @@ set(MODULE_NAME BVPreprocessVolume)
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
   )
+# Collect all Python scripts in the ${MODULE_NAME}Lib directory
 file(GLOB MODULE_LIB_PYTHON_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}Lib/*.py")
 foreach(python_script ${MODULE_LIB_PYTHON_SCRIPTS})
-  list(APPEND MODULE_PYTHON_SCRIPTS ${python_script})
+  get_filename_component(python_script_name ${python_script} NAME)
+  list(APPEND MODULE_PYTHON_SCRIPTS ${MODULE_NAME}Lib/${python_script_name})
 endforeach()
 
 set(MODULE_PYTHON_RESOURCES
