@@ -402,8 +402,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
                     pathKJI.append([outIJK[i+2], outIJK[i+1], outIJK[i]])
                 logging.debug(f"formatted: {pathKJI}")
                 MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
+
+                guideLineSize = self.guideLineNode.GetNumberOfControlPoints()
+                if guideLineSize:
+                    markupsLogic = slicer.modules.markups.logic()
+                    markupsLogic.FocusCamerasOnNthPointInMarkup(self.guideLineNode.GetID(), guideLineSize//2)
+
             slicer.mrmlScene.RemoveNode(cliNode)
-        # TODO: better if-else
+            return
 
         if status & cliNode.Cancelled:
 
