@@ -313,6 +313,8 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             costVolume = self._parameterNode.costVolume
             if self.logic.validateHeartROI(inputVolume, heartRoi):
                 self.logic.process(inputVolume, heartRoi, costVolume)
+                self.logic.renderDebugCroppedVolume(inputVolume, heartRoi, costVolume)
+
                 self.ui.MRMLMarkupsROIWidget.setInteractiveMode(False)
             else:
                 e = 'ROI is bigger than input volume or too big (15mm * 15mm * 15mm)'
@@ -454,3 +456,17 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+
+    def renderDebugCroppedVolume(
+        self,
+        inputVolume: vtkMRMLScalarVolumeNode,
+        heartRoi: vtkMRMLMarkupsROINode,
+        costVolume: vtkMRMLScalarVolumeNode,
+    ):
+        volRenLogic = slicer.modules.volumerendering.logic()
+        preset = volRenLogic.GetPresetByName('CT-Cardiac3')
+        displayNode = volRenLogic.CreateDefaultVolumeRenderingNodes(inputVolume)
+        displayNode.GetVolumePropertyNode().Copy(preset)
+        displayNode.SetAndObserveROINodeID(heartRoi.GetID())
+        displayNode.CroppingEnabledOn()
+        displayNode.SetVisibility(True)
