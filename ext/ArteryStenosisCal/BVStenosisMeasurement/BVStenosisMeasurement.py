@@ -198,7 +198,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         if not self._parameterNode._guideLine:
             guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
-            guideLine.SetName(f"{BVTextConst.internal_node_prefix} guideLine")
+            guideLine.SetName(BVTextConst.guidelineName)
             self._parameterNode._guideLine = guideLine
 
     def setParameterNode(
