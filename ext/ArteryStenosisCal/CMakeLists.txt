@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3...3.19.7 FATAL_ERROR)
 
-set(Slicer_DIR /opt/sr561/Slicer-build)
+# set(Slicer_DIR /opt/sr561/Slicer-build)
 # set(Os)
 
 find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)

@@ -9,7 +9,8 @@
             "binaryDir": "${sourceDir}/../ArteryStenosisCal-build",
             "cmakeExecutable": "/usr/local/bin/cmake",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "Slicer_DIR": "/opt/sr561/Slicer-build"
             }
         }
     ],
@@ -19,7 +20,9 @@
             "description": "Default build for artery stenosis",
             "hidden": false,
             "configurePreset": "configure-ext",
-            "jobs": 4
+            // "cleanFirst": true,
+            "jobs": 4,
+            "targets": ["BVCreateGuideLine"]
         }
     ],
     "workflowPresets": [
