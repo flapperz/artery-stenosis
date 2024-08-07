@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME BVStenosisMeasurement)
+set(MODULE_NAME BVPreprocessVolume)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

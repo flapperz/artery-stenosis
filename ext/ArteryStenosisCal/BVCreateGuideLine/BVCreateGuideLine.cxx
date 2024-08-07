@@ -64,11 +64,19 @@ namespace
 
     pq.insert({0, seed});
     dist_map[seed] = 0;
+    
+    const double CONST_SQRT2 = 1.41421356237;
+    const double CONST_SQRT3 = 1.73205080757;
+
+    typename ImageType::RegionType region = image->GetLargestPossibleRegion();
+    typename ImageType::SizeType imageSize = region.GetSize();
+    DEBUG_MSG("image size:" << imageSize << std::endl);
 
     bool is_reach = false;
 
+
     int it = 0;
-    const int MAX_IT = 5e6;
+    const int MAX_IT = std::min((int)5e6, (int)region.GetNumberOfPixels());
 
     while (!pq.empty() && !is_reach && it < MAX_IT)
     {
@@ -86,9 +94,10 @@ namespace
         break;
       }
 
-      if (dist_map.find(u_idx) != dist_map.end() && u_dist > dist_map[u_idx])
+      // u node distance should be set before add to pq
+      if (u_dist != dist_map[u_idx])
       {
-        DEBUG_MSG("In here too wtf!!!");
+        DEBUG_MSG("Ignore revisiting");
         continue;
       }
       for (auto const &vi : {-1, 0, 1})
@@ -101,11 +110,23 @@ namespace
             v_idx[0] += vi;
             v_idx[1] += vj;
             v_idx[2] += vk;
+            if (!region.IsInside(v_idx))
+              continue;
 
-            int dist_uv = 1;
+            double dist_uv = 1;
+            switch (abs(vi) + abs(vj) + abs(vk))
+            {
+            case 2:
+              dist_uv = CONST_SQRT2;
+              break;
+            case 3:
+              dist_uv = CONST_SQRT3;
+              break;
+            default:
+              break;
+            }
             // process
             double v_value = image->GetPixel(v_idx);
-            v_value = v_value > -50 ? 2000000000 : v_value + 4000;
 
             double curr_cost = dist_uv * v_value;
             double dist = u_dist + curr_cost;
@@ -171,9 +192,6 @@ namespace
     reader->Update();
     image = reader->GetOutput();
 
-    typename ImageType::RegionType region = image->GetLargestPossibleRegion();
-    typename ImageType::SizeType imageSize = region.GetSize();
-    DEBUG_MSG("image size:" << imageSize << std::endl);
 
     std::vector<Index3Type> path;
     // use seed as target / target as seed to avoid reveresing vecotr
@@ -183,7 +201,11 @@ namespace
       auto dest = markers[i];
       std::vector<Index3Type> subPath;
       int retVal = GetPathDijkstra<ImageType>(seed, dest, image, subPath);
-      // TODO: handling retVal == EXIT_FAILURE
+      if (retVal == EXIT_FAILURE)
+      {
+        std::cerr << "Can't find path between index:" << i << "to" << i+1 << std::endl;
+        return EXIT_FAILURE;
+      }
       path.insert(path.end(), subPath.begin(), subPath.end());
       DEBUG_MSG("dijkstra: " << retVal << " : " << subPath.size());
     }
