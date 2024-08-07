@@ -247,7 +247,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             if markersNode is not None:
                 self.addObserver(markersNode, e, self._onMarkersModified)
 
-        print(f'{prevMarkersNodeName} -> {markersNode.GetName() if markersNode else None}')
+        logging.info(f'{prevMarkersNodeName} -> {markersNode.GetName() if markersNode else None}')
 
 
     def _onMarkersModified(self, caller=None, event=None):
