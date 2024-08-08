@@ -561,17 +561,56 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
 
             cross_sec_area = slicer.util.arrayFromTableColumn(outTableNode, 'Cross-section area')
-            min_area = np.min(cross_sec_area)
-            max_area = np.max(cross_sec_area) # avg( max(proximal), max(distal) )
-            if max_area:
+            distances = slicer.util.arrayFromTableColumn(outTableNode, "Distance")
+            print(cross_sec_area.shape)
+            # Fix constant for now
+            max_distances = distances[-1]
+            if len(distances) < 20 or (len(distances) and max_distances < 6):
+                e = 'Vessel too short'
+                slicer.util.errorDisplay('Failed to compute stenosis: ' + str(e))
+                raise IndexError
+            trim_length = 2.5
+            min_trim_index = np.arange(len(distances))[distances > trim_length][0]
+            max_trim_index = np.arange(len(distances))[distances > max_distances - trim_length][0]
+            trim_cross_sec_area = cross_sec_area[min_trim_index: max_trim_index]
+
+            min_area_index = np.argmin(trim_cross_sec_area)
+            min_area = np.min(trim_cross_sec_area)
+            max_area = np.max(trim_cross_sec_area) # avg( max(proximal), max(distal) )
+            max_1_area = np.max(trim_cross_sec_area[:min_area_index])
+            max_2_area = np.max(trim_cross_sec_area[min_area_index:])
+            normal_reference = (max_1_area + max_2_area) * 0.5
+
+            if max_area and normal_reference:
                 stenosis = 1 - (min_area / max_area)
+                stenosis_f0 = 1 - (min_area / normal_reference)
+
                 stenosis_percent_str = f'{stenosis*100:.3f}'
-                slicer.util
-                print(f'{min_area=}, {max_area=}, {stenosis}:{stenosis_percent_str} %')
-                print(f'{min_area=} (mm^2)')
-                print(f'{max_area=} (mm^2)')
-                print(f'{stenosis=} %')
-                outInfo = f'Result!\n{min_area=:.3f} (mm^2)\n{max_area=:.3f} (mm^2)\nstenosis : {stenosis_percent_str}%'
+                stenosis_f0_percent_str = f'{stenosis_f0*100:.3f}'
+
+                outInfo = 'Result!\n'
+                outInfo += '\n'
+                outInfo += f'vessel length: {max_distances=:.3f} mm. trim with {trim_length} mm. both side'
+                outInfo += '\n'
+                outInfo += '====== stenosis ======\n'
+                outInfo += '\n'
+                outInfo += f'{min_area=:.3f} (mm^2)\n'
+                outInfo += f'{max_area=:.3f} (mm^2)\n'
+                outInfo += '\n'
+                outInfo += f'stenosis : {stenosis_percent_str}%\n'
+                outInfo += '\n'
+                outInfo += '====== formula 0 ======\n'
+                outInfo += '\n'
+                outInfo += f'{min_area=:.3f} (mm^2)\n'
+                outInfo += f'{max_1_area=:.3f} (mm^2)\n'
+                outInfo += f'{max_2_area=:.3f} (mm^2)\n'
+                outInfo += f'{normal_reference=:.3f} (mm^2)\n'
+                outInfo += '\n'
+                outInfo += f'stenosis : {stenosis_f0_percent_str}%'
+
+                print('===== Report stenosis result =====')
+                print(outInfo)
+
                 slicer.util.infoDisplay(outInfo, self.moduleName)
             else:
                 e = f'maximum area is zero {min_area=}, {max_area=}'
