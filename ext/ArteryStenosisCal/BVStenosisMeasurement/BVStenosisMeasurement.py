@@ -103,8 +103,8 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         """Called when the user opens the module the first time and the widget is initialized."""
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)  # needed for parameter node observation
-        self.logic : Optional[BVStenosisMeasurementLogic] = None
-        self._parameterNode : Optional[BVStenosisMeasurementParameterNode] = None
+        self.logic: Optional[BVStenosisMeasurementLogic] = None
+        self._parameterNode: Optional[BVStenosisMeasurementParameterNode] = None
         self._parameterNodeGuiTag = None
 
     def setup(self) -> None:
@@ -141,7 +141,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
         # input is validated via _checkCanCreateHeartRoi
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButtonClicked)
-        self.ui.adjustVolumeDisplayButton.connect('clicked(bool)', self.onAdjustVolumeDisplayButtonClicked)
+        self.ui.adjustVolumeDisplayButton.connect(
+            'clicked(bool)', self.onAdjustVolumeDisplayButtonClicked
+        )
         self.ui.prevStepButton.connect('clicked(bool)', self.onPrevStepButton)
 
         # Make sure parameter node is initialized (needed for module reload)
@@ -163,7 +165,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self._parameterNodeGuiTag = None
             self.removeObserver(
-                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self.onParameterUpdate
+                self._parameterNode,
+                vtk.vtkCommand.ModifiedEvent,
+                self.onParameterUpdate,
             )
 
     def onSceneStartClose(self, caller, event) -> None:
@@ -212,7 +216,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self.removeObserver(
-                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self.onParameterUpdate
+                self._parameterNode,
+                vtk.vtkCommand.ModifiedEvent,
+                self.onParameterUpdate,
             )
 
         self._parameterNode = inputParameterNode
@@ -221,7 +227,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
             self.addObserver(
-                self._parameterNode, vtk.vtkCommand.ModifiedEvent, self.onParameterUpdate
+                self._parameterNode,
+                vtk.vtkCommand.ModifiedEvent,
+                self.onParameterUpdate,
             )
             self.onParameterUpdate()
 
@@ -247,20 +255,24 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             if markersNode is not None:
                 self.addObserver(markersNode, e, self._onMarkersModified)
 
-        logging.info(f'{prevMarkersNodeName} -> {markersNode.GetName() if markersNode else None}')
-
+        logging.info(
+            f'{prevMarkersNodeName} -> {markersNode.GetName() if markersNode else None}'
+        )
 
     def _onMarkersModified(self, caller=None, event=None):
         """Handle markers change case: move, add, change markups node, reorder ?"""
         # TODO: check can apply
-        if self._parameterNode.inputVolume and self._parameterNode.markers.GetNumberOfControlPoints() > 1:
+        if (
+            self._parameterNode.inputVolume
+            and self._parameterNode.markers.GetNumberOfControlPoints() > 1
+        ):
             cliNode = self.logic.processMarkers(
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
-                self._parameterNode._guideLine
+                self._parameterNode._guideLine,
             )
             self.ui.CLIProgressBar.setCommandLineModuleNode(cliNode)
-        logging.debug("in _onMarkersModified")
+        logging.debug('in _onMarkersModified')
 
     def onParameterUpdate(self, caller=None, event=None):
         self._checkCanApply(caller=caller, event=event)
@@ -293,15 +305,20 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             #     self._parameterNode._guideLine
             # )
             # # Compute output
-            if not self._parameterNode or not self._parameterNode.inputVolume or not self._parameterNode.costVolume or not self._parameterNode._guideLine.GetNumberOfControlPoints() > 10:
-                e = "input invalid"
+            if (
+                not self._parameterNode
+                or not self._parameterNode.inputVolume
+                or not self._parameterNode.costVolume
+                or not self._parameterNode._guideLine.GetNumberOfControlPoints() > 10
+            ):
+                e = 'input invalid'
                 slicer.util.errorDisplay('Failed to compute results: ' + str(e))
                 return
             self.logic.process(
                 self._parameterNode.inputVolume,
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
-                self._parameterNode._guideLine
+                self._parameterNode._guideLine,
             )
 
             # # Compute inverted output (if needed)
@@ -343,7 +360,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
-        logging.debug("BVStenosisMeasurementLogic initialize")
+        logging.debug('BVStenosisMeasurementLogic initialize')
         ScriptedLoadableModuleLogic.__init__(self)
 
         # state
@@ -367,11 +384,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             for i in range(markers.GetNumberOfControlPoints())
         ]
         flattenMarkers = [x for ijk in markersIJK for x in ijk]
-        logging.debug(f"input flattenMarkers: {flattenMarkers}")
-        parameter = {
-            "inputVolume" : costVolume,
-            "inFlattenMarkersIJK" : flattenMarkers
-        }
+        logging.debug(f'input flattenMarkers: {flattenMarkers}')
+        parameter = {'inputVolume': costVolume, 'inFlattenMarkersIJK': flattenMarkers}
         BVCreateGuideLine = slicer.modules.bvcreateguideline
         cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
         return cliNode
@@ -385,34 +399,37 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             if status & cliNode.ErrorsMask:
                 # error
                 errorText = cliNode.GetErrorText()
-                logging.debug("CLI execution failed: " + errorText)
+                logging.debug('CLI execution failed: ' + errorText)
             else:
                 # success
-                outIJK = cliNode.GetParameterAsString("outFlattenMarkersIJK")
-                logging.debug("CLI execution succeeded. Output model node ID: " + outIJK)
+                outIJK = cliNode.GetParameterAsString('outFlattenMarkersIJK')
+                logging.debug(
+                    'CLI execution succeeded. Output model node ID: ' + outIJK
+                )
                 self.guideLineNode.RemoveAllControlPoints()
                 # TODO: refactor out create curve function
-                logging.debug(f"CLI output: {outIJK}")
+                logging.debug(f'CLI output: {outIJK}')
                 outIJK = [int(x) for x in outIJK.split(',')]
                 # outKJI = flattenMarkers
 
                 pathKJI = []
-                logging.debug(f"out path length: {len(outIJK)}")
+                logging.debug(f'out path length: {len(outIJK)}')
                 for i in range(0, len(outIJK), 3):
-                    pathKJI.append([outIJK[i+2], outIJK[i+1], outIJK[i]])
-                logging.debug(f"formatted: {pathKJI}")
+                    pathKJI.append([outIJK[i + 2], outIJK[i + 1], outIJK[i]])
+                logging.debug(f'formatted: {pathKJI}')
                 MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
 
                 guideLineSize = self.guideLineNode.GetNumberOfControlPoints()
                 if guideLineSize:
                     markupsLogic = slicer.modules.markups.logic()
-                    markupsLogic.FocusCamerasOnNthPointInMarkup(self.guideLineNode.GetID(), guideLineSize//2)
+                    markupsLogic.FocusCamerasOnNthPointInMarkup(
+                        self.guideLineNode.GetID(), guideLineSize // 2
+                    )
 
             slicer.mrmlScene.RemoveNode(cliNode)
             return
 
         if status & cliNode.Cancelled:
-
             slicer.mrmlScene.RemoveNode(cliNode)
 
     def adjustVolumeDisplay(self, volumeNode: vtkMRMLScalarVolumeNode) -> None:
@@ -424,10 +441,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         displayNode.SetWindowLevel(1400, 50)
 
     def processMarkers(
-            self,
-            costVolume: vtkMRMLScalarVolumeNode,
-            markers: vtkMRMLMarkupsFiducialNode,
-            guideLine: vtkMRMLMarkupsCurveNode
+        self,
+        costVolume: vtkMRMLScalarVolumeNode,
+        markers: vtkMRMLMarkupsFiducialNode,
+        guideLine: vtkMRMLMarkupsCurveNode,
     ) -> vtkMRMLCommandLineModuleNode:
         if self.createGuideLineCliNode:
             self.createGuideLineCliNode.Cancel()
@@ -442,7 +459,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
 
         self.createGuideLineCliNode = self._startProcessMarkers(costVolume, markers)
-        self.createGuideLineCliNode.AddObserver(vtkMRMLCommandLineModuleNode.StatusModifiedEvent, self._onProcessMarkersUpdate)
+        self.createGuideLineCliNode.AddObserver(
+            vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
+            self._onProcessMarkersUpdate,
+        )
         return self.createGuideLineCliNode
 
     def process(
@@ -450,7 +470,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         inputVolume: vtkMRMLScalarVolumeNode,
         costVolume: vtkMRMLScalarVolumeNode,
         markers: vtkMRMLMarkupsFiducialNode,
-        guideLine: vtkMRMLMarkupsCurveNode
+        guideLine: vtkMRMLMarkupsCurveNode,
     ) -> None:
         """
         Run the processing algorithm.
@@ -498,10 +518,12 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.app.processEvents()
         mainWindow.moduleSelector().selectModule('GuidedArterySegmentation')
 
-        vmtkSegWidget = slicer.modules.guidedarterysegmentation.widgetRepresentation().self()
+        vmtkSegWidget = (
+            slicer.modules.guidedarterysegmentation.widgetRepresentation().self()
+        )
         vmtkSegLogic = vmtkSegWidget.logic
         # TODO: not hard code slice node
-        sliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
+        sliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
 
         # must be call before curve selector
         vmtkSegWidget.ui.inputSliceNodeSelector.setCurrentNode(sliceNode)
@@ -526,18 +548,24 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.app.processEvents()
 
         segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
-        segmentID = "Segment_" + guideLine.GetID()
+        segmentID = 'Segment_' + guideLine.GetID()
         # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-        exportFolderItemId = shNode.CreateFolderItem(shNode.GetSceneItemID(), "Segments_" + guideLine.GetID())
-        slicer.modules.segmentations.logic().ExportSegmentsToModels(segmentationNode, [segmentID], exportFolderItemId)
+        exportFolderItemId = shNode.CreateFolderItem(
+            shNode.GetSceneItemID(), 'Segments_' + guideLine.GetID()
+        )
+        slicer.modules.segmentations.logic().ExportSegmentsToModels(
+            segmentationNode, [segmentID], exportFolderItemId
+        )
         segmentModels = vtk.vtkCollection()
         shNode.GetDataNodesInBranch(exportFolderItemId, segmentModels)
         # Get exported model of first segment
         modelNode = segmentModels.GetItemAsObject(0)
         # print("fucker", type(modelNode))
 
-        crossSecWidget = slicer.modules.crosssectionanalysis.widgetRepresentation().self()
+        crossSecWidget = (
+            slicer.modules.crosssectionanalysis.widgetRepresentation().self()
+        )
         crossSecLogic = crossSecWidget.logic
 
         centerlineNode = vmtkSegWidget._parameterNode.outputCenterlineCurve
@@ -549,19 +577,20 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         crossSecWidget.ui.applyButton.click()
         slicer.app.processEvents()
-        redSliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
-        greenSliceNode = slicer.app.layoutManager().sliceWidget("Green").mrmlSliceNode()
+        redSliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
+        greenSliceNode = slicer.app.layoutManager().sliceWidget('Green').mrmlSliceNode()
         crossSecWidget.ui.axialSliceViewSelector.setCurrentNode(redSliceNode)
         crossSecWidget.ui.longitudinalSliceViewSelector.setCurrentNode(greenSliceNode)
-
 
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute cross-section area.', waitCursor=True
         ):
             outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
 
-            cross_sec_area = slicer.util.arrayFromTableColumn(outTableNode, 'Cross-section area')
-            distances = slicer.util.arrayFromTableColumn(outTableNode, "Distance")
+            cross_sec_area = slicer.util.arrayFromTableColumn(
+                outTableNode, 'Cross-section area'
+            )
+            distances = slicer.util.arrayFromTableColumn(outTableNode, 'Distance')
             print(cross_sec_area.shape)
             # Fix constant for now
             max_distances = distances[-1]
@@ -571,12 +600,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
                 raise IndexError
             trim_length = 2.5
             min_trim_index = np.arange(len(distances))[distances > trim_length][0]
-            max_trim_index = np.arange(len(distances))[distances > max_distances - trim_length][0]
-            trim_cross_sec_area = cross_sec_area[min_trim_index: max_trim_index]
+            max_trim_index = np.arange(len(distances))[
+                distances > max_distances - trim_length
+            ][0]
+            trim_cross_sec_area = cross_sec_area[min_trim_index:max_trim_index]
 
             min_area_index = np.argmin(trim_cross_sec_area)
             min_area = np.min(trim_cross_sec_area)
-            max_area = np.max(trim_cross_sec_area) # avg( max(proximal), max(distal) )
+            max_area = np.max(trim_cross_sec_area)  # avg( max(proximal), max(distal) )
             max_1_area = np.max(trim_cross_sec_area[:min_area_index])
             max_2_area = np.max(trim_cross_sec_area[min_area_index:])
             normal_reference = (max_1_area + max_2_area) * 0.5
