@@ -447,7 +447,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         # threshold
 
         COST_OFFSET = 4000
-        volArray[volArray > AIR_THRESHOLD] = 2_000_000_000
+        volArray[volArray > AIR_THRESHOLD] = 4000000
         volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
 
 
