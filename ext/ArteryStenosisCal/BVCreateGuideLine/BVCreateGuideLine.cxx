@@ -76,7 +76,7 @@ namespace
 
 
     int it = 0;
-    const int MAX_IT = std::min((int)5e6, (int)region.GetNumberOfPixels());
+    const int MAX_IT = std::min((int)1e7, (int)region.GetNumberOfPixels());
 
     while (!pq.empty() && !is_reach && it < MAX_IT)
     {
