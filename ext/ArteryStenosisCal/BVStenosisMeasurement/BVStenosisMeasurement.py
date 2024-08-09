@@ -145,6 +145,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             'clicked(bool)', self.onAdjustVolumeDisplayButtonClicked
         )
         self.ui.prevStepButton.connect('clicked(bool)', self.onPrevStepButton)
+        self.ui.markersSelector.connect(
+            'currentNodeChanged(vtkMRMLNode*)', self.updateSimpleMarkups
+        )
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -232,6 +235,9 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 self.onParameterUpdate,
             )
             self.onParameterUpdate()
+
+    def updateSimpleMarkups(self, markers):
+        self.ui.simpleMarkupsWidget.setCurrentNode(markers)
 
     def _updateNodeObserver(self, caller=None, event=None) -> None:
         print('parameterNodeUpdate')

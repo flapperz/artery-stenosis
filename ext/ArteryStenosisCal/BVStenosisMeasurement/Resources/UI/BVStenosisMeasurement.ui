@@ -146,6 +146,19 @@
     </widget>
    </item>
    <item>
+    <widget class="qSlicerSimpleMarkupsWidget" name="simpleMarkupsWidget">
+     <property name="enterPlaceModeOnNodeChange">
+      <bool>false</bool>
+     </property>
+     <property name="jumpToSliceEnabled">
+      <bool>true</bool>
+     </property>
+     <property name="nodeSelectorVisible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="ctkCollapsibleButton" name="outputsCollapsibleButton">
      <property name="text">
       <string>Outputs</string>
@@ -259,6 +272,17 @@
    <extends>QWidget</extends>
    <header>qSlicerCLIProgressBar.h</header>
   </customwidget>
+  <customwidget>
+   <class>qSlicerWidget</class>
+   <extends>QWidget</extends>
+   <header>qSlicerWidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qSlicerSimpleMarkupsWidget</class>
+   <extends>qSlicerWidget</extends>
+   <header>qSlicerSimpleMarkupsWidget.h</header>
+  </customwidget>
  </customwidgets>
  <resources/>
  <connections>
@@ -307,6 +331,22 @@
     <hint type="destinationlabel">
      <x>214</x>
      <y>71</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BVStenosisMeasurement</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>simpleMarkupsWidget</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>162</x>
+     <y>209</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>162</x>
+     <y>184</y>
     </hint>
    </hints>
   </connection>
