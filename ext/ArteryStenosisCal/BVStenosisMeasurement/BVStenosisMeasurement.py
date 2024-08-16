@@ -23,6 +23,7 @@ from slicer.parameterNodeWrapper import (
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
     ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
     ScriptedLoadableModuleWidget,
 )
 from slicer.util import VTKObservationMixin
@@ -655,3 +656,25 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+
+#
+# BVStenosisMeasurementTest
+#
+# --Test--
+#
+
+class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear()
+
+    def runTest(self):
+        self.setUp()
+        self.test_BVStenosisMeasurement1()
+
+    def test_BVStenosisMeasurement1(self):
+        self.delayDisplay('Starting the test')
+        self.assertEqual(1,1)
+
+        slicer.util.loadScene( '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb')
+
+        self.delayDisplay('Test passed')
