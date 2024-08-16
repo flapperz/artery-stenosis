@@ -22,6 +22,7 @@
             "configurePreset": "configure-ext",
             // "cleanFirst": true,
             "jobs": 4,
+            // "targets": ["all"],
             "targets": ["BVCreateGuideLine"]
         }
     ],
