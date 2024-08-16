@@ -388,6 +388,62 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         return result
 
+    def renderDebugCroppedVolume(
+        self,
+        inputVolume: vtkMRMLScalarVolumeNode,
+        heartRoi: vtkMRMLMarkupsROINode,
+        costVolume: vtkMRMLScalarVolumeNode,
+    ):
+        volRenLogic = slicer.modules.volumerendering.logic()
+        preset = volRenLogic.GetPresetByName('CT-Cardiac3')
+        displayNode = volRenLogic.CreateDefaultVolumeRenderingNodes(inputVolume)
+        displayNode.GetVolumePropertyNode().Copy(preset)
+        displayNode.SetAndObserveROINodeID(heartRoi.GetID())
+        displayNode.CroppingEnabledOn()
+        displayNode.SetVisibility(True)
+
+    def doCrop(self, inputVolume, heartRoi, costVolume, scaling=0.4):
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLCropVolumeParametersNode'
+        )
+        cropVolumeParameters.SetInputVolumeNodeID(inputVolume.GetID())
+        cropVolumeParameters.SetROINodeID(heartRoi.GetID())
+        cropVolumeParameters.SetOutputVolumeNodeID(costVolume.GetID())
+        cropVolumeParameters.SetInterpolationMode(
+            cropVolumeParameters.InterpolationLinear
+        )
+        # Interpolated Cropping
+        cropVolumeParameters.SetVoxelBased(False)
+        cropVolumeParameters.SetSpacingScalingConst(scaling)
+        cropVolumeParameters.SetIsotropicResampling(True)
+        slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+
+    def doPreprocessIntensity(self, costVolume):
+
+        AIR_THRESHOLD = -150
+
+        volArray: np.array = slicer.util.arrayFromVolume(costVolume).copy()
+        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
+
+        # apply polynomial
+        coef = [-3.912e-1, 2.689e0, 5.395e-3, 3.706e-6]
+        volArray = np.polynomial.polynomial.polyval(
+            volArray, coef
+        )
+        volArray = volArray.astype(np.int32)
+        AIR_THRESHOLD = np.polynomial.polynomial.polyval(-150, coef)
+        print(f"{AIR_THRESHOLD=}")
+
+        # threshold
+        COST_OFFSET = 4000
+        volArray[volArray > AIR_THRESHOLD] = 4000000
+        volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
+
+        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
+
+        slicer.util.updateVolumeFromArray(costVolume, volArray)
+
     def process(
         self,
         inputVolume: vtkMRMLScalarVolumeNode,
@@ -414,59 +470,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
-        # crop
-
-        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
-            'vtkMRMLCropVolumeParametersNode'
-        )
-        cropVolumeParameters.SetInputVolumeNodeID(inputVolume.GetID())
-        cropVolumeParameters.SetROINodeID(heartRoi.GetID())
-        cropVolumeParameters.SetOutputVolumeNodeID(costVolume.GetID())
-        cropVolumeParameters.SetInterpolationMode(
-            cropVolumeParameters.InterpolationLinear
-        )
-        cropVolumeParameters.SetVoxelBased(False)  # Interpolated Cropping
-        cropVolumeParameters.SetSpacingScalingConst(0.4)
-        cropVolumeParameters.SetIsotropicResampling(True)
-        slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
-        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
-
-        volArray: np.array = slicer.util.arrayFromVolume(costVolume).copy()
-        logging.debug(f'Type of input {inputVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
-        AIR_THRESHOLD = -150
-
-        # apply polynomial
-        coef = [-3.912e-1, 2.689e0, 5.395e-3, 3.706e-6]
-        volArray = np.polynomial.polynomial.polyval(
-            volArray, coef
-        )
-        volArray = volArray.astype(np.int32)
-        AIR_THRESHOLD = np.polynomial.polynomial.polyval(-150, coef)
-        print(f"{AIR_THRESHOLD=}")
-
-        # threshold
-
-        COST_OFFSET = 4000
-        volArray[volArray > AIR_THRESHOLD] = 4000000
-        volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
-
-
-        slicer.util.updateVolumeFromArray(costVolume, volArray)
-        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
+        self.doCrop(inputVolume, heartRoi, costVolume)
+        self.doPreprocessIntensity(costVolume)
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
-
-    def renderDebugCroppedVolume(
-        self,
-        inputVolume: vtkMRMLScalarVolumeNode,
-        heartRoi: vtkMRMLMarkupsROINode,
-        costVolume: vtkMRMLScalarVolumeNode,
-    ):
-        volRenLogic = slicer.modules.volumerendering.logic()
-        preset = volRenLogic.GetPresetByName('CT-Cardiac3')
-        displayNode = volRenLogic.CreateDefaultVolumeRenderingNodes(inputVolume)
-        displayNode.GetVolumePropertyNode().Copy(preset)
-        displayNode.SetAndObserveROINodeID(heartRoi.GetID())
-        displayNode.CroppingEnabledOn()
-        displayNode.SetVisibility(True)
