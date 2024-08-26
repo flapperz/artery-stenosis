@@ -517,8 +517,11 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # slicer.mrmlScene.RemoveNode(cliNode)
         mainWindow = slicer.util.mainWindow()
 
+        # Commonly used node
+        shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+
         #
-        # --- Segmentation + extract centerline
+        # --- Segmentation
         #
 
         slicer.util.setSliceViewerLayers(background=costVolume)
@@ -529,6 +532,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             slicer.modules.guidedarterysegmentation.widgetRepresentation().self()
         )
         vmtkSegLogic = vmtkSegWidget.logic
+
         # TODO: not hard code slice node
         sliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
 
@@ -539,13 +543,63 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # in mm.
         vmtkSegWidget._parameterNode.neighbourhoodSize = 1.4
         vmtkSegWidget._parameterNode.tubeDiameter = 2.0
-        vmtkSegWidget._parameterNode.extractCenterlines = True
+        vmtkSegWidget._parameterNode.extractCenterlines = False
 
         vmtkSegWidget.ui.applyButton.click()
 
         # set slice background back
         slicer.util.setSliceViewerLayers(background=inputVolume)
         slicer.app.processEvents()
+
+        segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
+        segmentation = segmentationNode.GetSegmentation()
+        # segmentation.GetNumberOfSegments()
+        # segmentation.GetNthSegment(0)
+        segmentID = segmentation.GetSegmentIDs()[0]
+
+        #
+        # --- Extract Centerline
+        #
+        mainWindow.moduleSelector().selectModule('ExtractCenterline')
+
+        ecWidget = slicer.modules.extractcenterline.widgetRepresentation().self()
+        ecLogic = ecWidget.logic
+
+        ecWidget.ui.inputSurfaceSelector.setCurrentNode(segmentationNode)
+        ecWidget.ui.inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
+
+        # # Copy node
+        # guideLineShID = shNode.GetItemByDataNode(guideLine)
+        # endPointsShID = (
+        #     slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(
+        #         shNode, guideLineShID
+        #     )
+        # )
+        # endPointsNode = shNode.GetItemDataNode(endPointsShID)
+        # endPointsNode.SetName('Endpoints_' + markers.GetName())
+
+        # TODO maybe we can use logic directly here
+        endPointsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+        endPointsNode.SetName('Endpoints_' + markers.GetName())
+        slicer.util.updateMarkupsControlPointsFromArray(endPointsNode, slicer.util.arrayFromMarkupsControlPoints(guideLine))
+
+        slicer.app.processEvents()
+        ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
+
+        centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        centerlineModelNode.SetName('Centerline_model_' + markers.GetName())
+        ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
+
+        centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLMarkupsCurveNode'
+        )
+        centerlineCurveNode.SetName('Centerline_curve_' + markers.GetName())
+        ecWidget.ui.outputCenterlineCurveSelector.setCurrentNode(centerlineCurveNode)
+        ecWidget.onAutoDetectEndPoints()
+
+        ecWidget.onApplyButton()
+
+        return
 
         #
         # --- Cross Sectional Analysis
@@ -554,10 +608,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
         slicer.app.processEvents()
 
-        segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
-        segmentID = 'Segment_' + guideLine.GetID()
         # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
-        shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
         exportFolderItemId = shNode.CreateFolderItem(
             shNode.GetSceneItemID(), 'Segments_' + guideLine.GetID()
         )
