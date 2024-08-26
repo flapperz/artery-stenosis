@@ -207,6 +207,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         if not self._parameterNode._guideLine:
             guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
             guideLine.SetName(BVTextConst.guidelineName)
+            guideLine.SetCurveTypeToLinear()
             self._parameterNode._guideLine = guideLine
 
     def setParameterNode(
@@ -424,7 +425,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
                 for i in range(0, len(outIJK), 3):
                     pathKJI.append([outIJK[i + 2], outIJK[i + 1], outIJK[i]])
                 logging.debug(f'formatted: {pathKJI}')
-                MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
+                MRMLUtils.createLinearCurve(pathKJI, self.guideLineNode, self.ijk2rasMat)
+                # MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
 
                 guideLineSize = self.guideLineNode.GetNumberOfControlPoints()
                 if guideLineSize:
