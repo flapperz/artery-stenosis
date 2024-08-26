@@ -147,7 +147,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         )
         self.ui.prevStepButton.connect('clicked(bool)', self.onPrevStepButton)
         self.ui.markersSelector.connect(
-            'currentNodeChanged(vtkMRMLNode*)', self.updateSimpleMarkups
+            'currentNodeChanged(vtkMRMLNode*)', self.setSimpleMarkups
         )
 
         # Make sure parameter node is initialized (needed for module reload)
@@ -237,7 +237,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             )
             self.onParameterUpdate()
 
-    def updateSimpleMarkups(self, markers):
+    def setSimpleMarkups(self, markers):
         self.ui.simpleMarkupsWidget.setCurrentNode(markers)
 
     def _updateNodeObserver(self, caller=None, event=None) -> None:
@@ -273,7 +273,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             self._parameterNode.inputVolume
             and self._parameterNode.markers.GetNumberOfControlPoints() > 1
         ):
-            cliNode = self.logic.processMarkers(
+            cliNode = self.logic.createGuideLine(
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode._guideLine,
@@ -447,7 +447,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         displayNode.AutoWindowLevelOff()
         displayNode.SetWindowLevel(1400, 50)
 
-    def processMarkers(
+    def createGuideLine(
         self,
         costVolume: vtkMRMLScalarVolumeNode,
         markers: vtkMRMLMarkupsFiducialNode,
@@ -460,10 +460,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         x = vtk.vtkMatrix4x4()
         costVolume.GetIJKToRASMatrix(x)
-        self.ijk2rasMat = MRMLUtils.vtk4x4matrix2numpy(x)
+        self.ijk2rasMat = slicer.util.arrayFromVTKMatrix(x)
 
         costVolume.GetRASToIJKMatrix(x)
-        self.ras2ijkMat = MRMLUtils.vtk4x4matrix2numpy(x)
+        self.ras2ijkMat = slicer.util.arrayFromVTKMatrix(x)
 
         self.createGuideLineCliNode = self._startProcessMarkers(costVolume, markers)
         self.createGuideLineCliNode.AddObserver(
