@@ -35,7 +35,7 @@ class BVPreprocessVolume(ScriptedLoadableModule):
         self.version = 3.0
         self.parent.title = 'BV Preprocess (CT) Volume'
         self.parent.categories = ['Chula BV']
-        self.parent.dependencies = ['BVCreateGuideLine']
+        self.parent.dependencies = []
         self.parent.contributors = ['Krit Cholapand (Chulalongkorn University)']
         self.parent.helpText = f"""
     Artery Stenosis Measurement version {self.version}. Documentation is available
