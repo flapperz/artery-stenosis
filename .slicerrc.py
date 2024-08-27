@@ -100,3 +100,8 @@ class myutil:
             slicer.modules.bvpreprocessvolume.widgetRepresentation().self().logic
         )
         stenosisLogic.processMarkers(costVolume, markers, newCurve)
+
+
+myutil.loadScene()
+slicer.app.processEvents()
+myutil.autorun()
