@@ -29,15 +29,6 @@ def createCurve(points_kji, curve_node, ijk2ras_mat, spacing=0.4):
             last_add_dist = curr_dist
 
 
-def createLinearCurve(point_kji, curve_node, ijk2ras_mat):
-    x = np.array(point_kji, float)
-    x = x.T
-    x = x[::-1, :]
-    x = np.concatenate([x, np.ones((1, x.shape[1]))], axis=0)
-    x = ijk2ras_mat @ x
-    x = x[:3, :].T
-
-    slicer.util.updateMarkupsControlPointsFromArray(curve_node, x)
 
 def getFiducialAsKJI(fiducial_node, i, ras2ijk_mat):
     ras_homo = np.ones([4, 1])

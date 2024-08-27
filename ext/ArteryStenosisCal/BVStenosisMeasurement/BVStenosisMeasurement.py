@@ -9,6 +9,7 @@ import slicer.util
 import vtk
 from BVStenosisMeasurementLib import MRMLUtils
 from BVStenosisMeasurementLib.BVConstants import BVTextConst
+from BVStenosisMeasurementLib.Controllers import CreateGuideLineController
 from slicer import (
     vtkMRMLCommandLineModuleNode,
     vtkMRMLMarkupsCurveNode,
@@ -373,10 +374,12 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # state
         self.createGuideLineCliNode = None
+
         # TODO: change to function factory or wrapper
         self.guideLineNode = None
         self.ijk2rasMat = None
         self.ras2ijkMat = None
+        self.createGuideLineController = CreateGuideLineController()
 
         # debug volume
         # shNode = slicer.vtkMRMLSubjectHierachyNode.GetSubjectHierachyNode(slicer.mrmlScene)
@@ -385,61 +388,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def getParameterNode(self):
         return BVStenosisMeasurementParameterNode(super().getParameterNode())
-
-    def _startProcessMarkers(self, costVolume, markers):
-        markersIJK = [
-            MRMLUtils.getFiducialAsIJK(markers, i, self.ras2ijkMat)
-            for i in range(markers.GetNumberOfControlPoints())
-        ]
-        flattenMarkers = [x for ijk in markersIJK for x in ijk]
-        logging.debug(f'input flattenMarkers: {flattenMarkers}')
-        parameter = {'inputVolume': costVolume, 'inFlattenMarkersIJK': flattenMarkers}
-        BVCreateGuideLine = slicer.modules.bvcreateguideline
-        cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
-        return cliNode
-
-    def _onProcessMarkersUpdate(self, cliNode, event):
-        # logging.debug("Got a %s from a %s : %s" % (event, cliNode.GetClassName(), cliNode.GetName()))
-
-        status = cliNode.GetStatus()
-
-        if status & cliNode.Completed:
-            if status & cliNode.ErrorsMask:
-                # error
-                errorText = cliNode.GetErrorText()
-                logging.debug('CLI execution failed: ' + errorText)
-            else:
-                # success
-                outIJK = cliNode.GetParameterAsString('outFlattenMarkersIJK')
-                logging.debug(
-                    'CLI execution succeeded. Output model node ID: ' + outIJK
-                )
-                self.guideLineNode.RemoveAllControlPoints()
-                # TODO: refactor out create curve function
-                logging.debug(f'CLI output: {outIJK}')
-                outIJK = [int(x) for x in outIJK.split(',')]
-                # outKJI = flattenMarkers
-
-                pathKJI = []
-                logging.debug(f'out path length: {len(outIJK)}')
-                for i in range(0, len(outIJK), 3):
-                    pathKJI.append([outIJK[i + 2], outIJK[i + 1], outIJK[i]])
-                logging.debug(f'formatted: {pathKJI}')
-                MRMLUtils.createLinearCurve(pathKJI, self.guideLineNode, self.ijk2rasMat)
-                # MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
-
-                guideLineSize = self.guideLineNode.GetNumberOfControlPoints()
-                if guideLineSize:
-                    markupsLogic = slicer.modules.markups.logic()
-                    markupsLogic.FocusCamerasOnNthPointInMarkup(
-                        self.guideLineNode.GetID(), guideLineSize // 2
-                    )
-
-            slicer.mrmlScene.RemoveNode(cliNode)
-            return
-
-        if status & cliNode.Cancelled:
-            slicer.mrmlScene.RemoveNode(cliNode)
 
     def adjustVolumeDisplay(self, volumeNode: vtkMRMLScalarVolumeNode) -> None:
         displayNode = volumeNode.GetDisplayNode()
@@ -455,24 +403,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         markers: vtkMRMLMarkupsFiducialNode,
         guideLine: vtkMRMLMarkupsCurveNode,
     ) -> vtkMRMLCommandLineModuleNode:
-        if self.createGuideLineCliNode:
-            self.createGuideLineCliNode.Cancel()
-
-        self.guideLineNode = guideLine
-
-        x = vtk.vtkMatrix4x4()
-        costVolume.GetIJKToRASMatrix(x)
-        self.ijk2rasMat = slicer.util.arrayFromVTKMatrix(x)
-
-        costVolume.GetRASToIJKMatrix(x)
-        self.ras2ijkMat = slicer.util.arrayFromVTKMatrix(x)
-
-        self.createGuideLineCliNode = self._startProcessMarkers(costVolume, markers)
-        self.createGuideLineCliNode.AddObserver(
-            vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
-            self._onProcessMarkersUpdate,
-        )
-        return self.createGuideLineCliNode
+        return self.createGuideLineController.runCreateGuideLineAsync(costVolume, markers, guideLine)
 
     def process(
         self,
