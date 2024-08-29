@@ -17,10 +17,6 @@ import slicer.util
 # slicer.util.mainWindow().moduleSelector().selectModule('BVPreprocessVolume')
 # slicer.util.mainWindow().moduleSelector().selectModule('BVCreateGuideLine')
 
-class mytest:
-    @staticmethod
-    def testLAD():
-        return True
 
 class myutil:
     @staticmethod
@@ -102,6 +98,6 @@ class myutil:
         stenosisLogic.processMarkers(costVolume, markers, newCurve)
 
 
-myutil.loadScene()
-slicer.app.processEvents()
-myutil.autorun()
+# myutil.loadScene()
+# slicer.app.processEvents()
+# myutil.autorun()
