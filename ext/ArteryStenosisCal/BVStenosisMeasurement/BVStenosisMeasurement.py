@@ -395,8 +395,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         costVolume: vtkMRMLScalarVolumeNode,
         markers: vtkMRMLMarkupsFiducialNode,
         guideLine: vtkMRMLMarkupsCurveNode,
+        isSingleton = True
     ) -> vtkMRMLCommandLineModuleNode:
-        return self.createGuideLineController.runCreateGuideLineAsync(costVolume, markers, guideLine)
+        return self.createGuideLineController.runCreateGuideLineAsync(costVolume, markers, guideLine, isSingleton)
 
     def process(
         self,

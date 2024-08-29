@@ -12,9 +12,9 @@ class CreateGuideLineController():
     def __init__(self):
         self.createGuideLineCliNode = None
 
-    def runCreateGuideLineAsync(self, costVolume, markers, guideLine):
+    def runCreateGuideLineAsync(self, costVolume, markers, guideLine, isSingleton=True):
 
-        if self.createGuideLineCliNode:
+        if self.createGuideLineCliNode and isSingleton:
             self.createGuideLineCliNode.Cancel()
 
         x = vtk.vtkMatrix4x4()
@@ -42,9 +42,11 @@ class CreateGuideLineController():
         cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
         cliNode.AddObserver(
             vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
-            self._createUpdateCb(ijk2rasMat, guideLine),
+            self._createUpdateCb(ijk2rasMat, guideLine, isJumpSliceOnComplete=isSingleton),
         )
-        self.createGuideLineCliNode = cliNode
+        if isSingleton:
+            self.createGuideLineCliNode = cliNode
+
         return cliNode
 
     def _createLinearCurve(self, point_kji, curve_node, ijk2ras_mat):
@@ -57,7 +59,7 @@ class CreateGuideLineController():
 
         slicer.util.updateMarkupsControlPointsFromArray(curve_node, x)
 
-    def _createUpdateCb(self, ijk2rasMat, guideLineNode):
+    def _createUpdateCb(self, ijk2rasMat, guideLineNode, jumpSliceOnComplete=True):
         def updateCb(cliNode, event):
             # logging.debug("Got a %s from a %s : %s" % (event, cliNode.GetClassName(), cliNode.GetName()))
 
@@ -75,25 +77,24 @@ class CreateGuideLineController():
                         'CLI execution succeeded. Output model node ID: ' + outIJK
                     )
                     guideLineNode.RemoveAllControlPoints()
-                    # TODO: refactor out create curve function
+                    guideLineNode.SetCurveTypeToLinear()
+
                     logging.debug(f'CLI output: {outIJK}')
                     outIJK = [int(x) for x in outIJK.split(',')]
-                    # outKJI = flattenMarkers
 
-                    pathKJI = []
                     logging.debug(f'out path length: {len(outIJK)}')
-                    for i in range(0, len(outIJK), 3):
-                        pathKJI.append([outIJK[i + 2], outIJK[i + 1], outIJK[i]])
+                    pathKJI = [[outIJK[i + 2], outIJK[i + 1], outIJK[i]] for i in range(0, len(outIJK), 3)]
                     logging.debug(f'formatted: {pathKJI}')
                     self._createLinearCurve(pathKJI, guideLineNode, ijk2rasMat)
                     # MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
 
-                    guideLineSize = guideLineNode.GetNumberOfControlPoints()
-                    if guideLineSize:
-                        markupsLogic = slicer.modules.markups.logic()
-                        markupsLogic.FocusCamerasOnNthPointInMarkup(
-                            guideLineNode.GetID(), guideLineSize // 2
-                        )
+                    if jumpSliceOnComplete:
+                        guideLineSize = guideLineNode.GetNumberOfControlPoints()
+                        if guideLineSize:
+                            markupsLogic = slicer.modules.markups.logic()
+                            markupsLogic.FocusCamerasOnNthPointInMarkup(
+                                guideLineNode.GetID(), guideLineSize // 2
+                            )
 
                 slicer.mrmlScene.RemoveNode(cliNode)
                 return
