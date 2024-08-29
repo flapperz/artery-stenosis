@@ -719,13 +719,9 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         return ladNode, lcxDNode, rcaDNode, volumeNode, roiNode
 
     def runPreprocessVolume(self, volumeNode, roiNode, costVolume=None):
-        if not costVolume:
-            costVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
-            costVolume.SetName('BV_COSTVOLUME')
-            costVolume.CreateDefaultDisplayNodes()
-            costVolume.CreateDefaultStorageNode()
         preprocessLogic = (
             slicer.modules.bvpreprocessvolume.widgetRepresentation().self().logic
         )
+        costVolume = preprocessLogic.createEmptyCostVolume()
         preprocessLogic.process(volumeNode, roiNode, costVolume)
         return costVolume
