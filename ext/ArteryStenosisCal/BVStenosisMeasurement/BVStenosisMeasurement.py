@@ -659,6 +659,8 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         self.delayDisplay('Test passed')
 
     def test_GuideLines(self):
+        import time
+
         self.delayDisplay('Start testing GuideLines Creation')
 
         slicer.util.reloadScriptedModule('BVPreprocessVolume')
@@ -671,9 +673,30 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         logic = BVStenosisMeasurementLogic()
 
         # run craeteGuideLine
-        ladCurve = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
-        ladCurve.SetName("LAD_GL")
-        logic.createGuideLine(costVolumeNode, ladNode, ladCurve, isSingleton=False)
+
+        for (name, markupsNode) in zip(('LAD', 'LCX', 'RCA'), (ladNode, lcxDNode, rcaDNode)):
+            startTime = time.time()
+
+            markupsArray = slicer.util.arrayFromMarkupsControlPoints(markupsNode)
+
+            markersNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+            markersNode.SetName(f'SEED_SPARSE_{name}')
+            markersIndices = (0, -1)
+            slicer.util.updateMarkupsControlPointsFromArray(markersNode, markupsArray[markersIndices, :])
+
+            curveNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
+            curveName = f'GL_{name}'
+            curveNode.SetName(curveName)
+            logic.createGuideLine(costVolumeNode, markersNode, curveNode, isSingleton=False)
+            self.delayDisplay(f'Finish Create Guideline: {name} -> {curveName}')
+
+            stopTime = time.time()
+            report = '\n'
+            report = f'CreateGuideLine: {name}\n'
+            report += '-' * len(report) + '\n'
+            report += f'time: {stopTime - startTime}'
+            report += f'seedIndex: {markersIndices}'
+            print(report)
 
         mainWindow.moduleSelector().selectModule('Markups')
 
