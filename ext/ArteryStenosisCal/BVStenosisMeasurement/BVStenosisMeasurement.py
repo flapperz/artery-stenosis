@@ -647,7 +647,8 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         self.setUp()
-        self.test_BVStenosisMeasurement1()
+        # self.test_BVStenosisMeasurement1()
+        self.test_GuideLines()
 
     def test_BVStenosisMeasurement1(self):
         self.delayDisplay('Starting the test')
@@ -656,3 +657,52 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         slicer.util.loadScene( '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb')
 
         self.delayDisplay('Test passed')
+
+    def test_GuideLines(self):
+        self.delayDisplay('Start testing GuideLines Creation')
+
+        slicer.util.reloadScriptedModule('BVPreprocessVolume')
+        mainWindow = slicer.util.mainWindow()
+
+        ladNode, lcxDNode, rcaDNode, volumeNode, roiNode = self.loadScene()
+
+        # run preprocess volume
+        costVolumeNode = self.runPreprocessVolume(volumeNode, roiNode)
+        logic = BVStenosisMeasurementLogic()
+
+        # run craeteGuideLine
+        ladCurve = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
+        ladCurve.SetName("LAD_GL")
+        logic.createGuideLine(costVolumeNode, ladNode, ladCurve, isSingleton=False)
+
+        mainWindow.moduleSelector().selectModule('Markups')
+
+    def loadScene(self):
+        slicer.util.loadScene(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb'
+        )
+        lcxDNode = slicer.util.loadMarkups(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/LCX-D.mrk.json'
+        )
+        rcaDNode = slicer.util.loadMarkups(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/RCA-D.mrk.json'
+        )
+        roiNode = slicer.util.loadNodeFromFile(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/R.mrk.json'
+        )
+        ladNode = slicer.util.getNode('LAD')
+        volumeNode = slicer.util.getNode('14: Body Soft Tissue')
+
+        return ladNode, lcxDNode, rcaDNode, volumeNode, roiNode
+
+    def runPreprocessVolume(self, volumeNode, roiNode, costVolume=None):
+        if not costVolume:
+            costVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+            costVolume.SetName('BV_COSTVOLUME')
+            costVolume.CreateDefaultDisplayNodes()
+            costVolume.CreateDefaultStorageNode()
+        preprocessLogic = (
+            slicer.modules.bvpreprocessvolume.widgetRepresentation().self().logic
+        )
+        preprocessLogic.process(volumeNode, roiNode, costVolume)
+        return costVolume
