@@ -372,13 +372,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         logging.debug('BVStenosisMeasurementLogic initialize')
         ScriptedLoadableModuleLogic.__init__(self)
 
-        # state
-        self.createGuideLineCliNode = None
-
-        # TODO: change to function factory or wrapper
-        self.guideLineNode = None
-        self.ijk2rasMat = None
-        self.ras2ijkMat = None
         self.createGuideLineController = CreateGuideLineController()
 
         # debug volume
