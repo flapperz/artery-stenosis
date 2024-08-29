@@ -669,7 +669,12 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         ladNode, lcxDNode, rcaDNode, volumeNode, roiNode = self.loadScene()
 
         # run preprocess volume
+        startTime = time.time()
         costVolumeNode = self.runPreprocessVolume(volumeNode, roiNode)
+        stopTime = time.time()
+        preprocessReport = f'Preprocess Volume in {stopTime-startTime:.3f} s'
+        self.delayDisplay(preprocessReport)
+        print(preprocessReport)
         logic = BVStenosisMeasurementLogic()
 
         # run craeteGuideLine
@@ -694,8 +699,8 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
             report = '\n'
             report = f'CreateGuideLine: {name}\n'
             report += '-' * len(report) + '\n'
-            report += f'time: {stopTime - startTime}'
-            report += f'seedIndex: {markersIndices}'
+            report += f'time: {stopTime - startTime:.3f}\n'
+            report += f'seedIndex: {markersIndices}\n'
             print(report)
 
         mainWindow.moduleSelector().selectModule('Markups')
