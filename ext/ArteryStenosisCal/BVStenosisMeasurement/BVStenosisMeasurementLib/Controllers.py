@@ -39,13 +39,21 @@ class CreateGuideLineController():
         logging.debug(f'input flattenMarkers: {flattenMarkers}')
         parameter = {'inputVolume': costVolume, 'inFlattenMarkersIJK': flattenMarkers}
         BVCreateGuideLine = slicer.modules.bvcreateguideline
-        cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
-        cliNode.AddObserver(
-            vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
-            self._createUpdateCb(ijk2rasMat, guideLine, isJumpSliceOnComplete=isSingleton),
-        )
         if isSingleton:
+            cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
+            cliNode.AddObserver(
+                    vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
+                    self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=True),
+                    )
             self.createGuideLineCliNode = cliNode
+        else:
+            # for test
+            cliNode = slicer.cli.createNode(BVCreateGuideLine, parameter)
+            cliNode.AddObserver(
+                    vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
+                    self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=False),
+                    )
+            slicer.cli.runSync(BVCreateGuideLine, cliNode)
 
         return cliNode
 
