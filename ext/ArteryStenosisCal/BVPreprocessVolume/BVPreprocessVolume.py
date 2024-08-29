@@ -253,7 +253,6 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self._parameterNode
             and self._parameterNode.inputVolume
             and self._parameterNode.heartRoi
-            and self._parameterNode.costVolume
         ):
             self.ui.applyButton.toolTip = 'Compute preprocessed volume as cost volume'
             self.ui.applyButton.enabled = True
@@ -310,7 +309,10 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         ):
             inputVolume = self._parameterNode.inputVolume
             heartRoi = self._parameterNode.heartRoi
+            if not self._parameterNode.costVolume:
+                self._parameterNode.costVolume = self.logic.createEmptyCostVolume()
             costVolume = self._parameterNode.costVolume
+
             if self.logic.validateHeartROI(inputVolume, heartRoi):
                 self.logic.process(inputVolume, heartRoi, costVolume)
                 self.logic.renderDebugCroppedVolume(inputVolume, heartRoi, costVolume)
@@ -401,6 +403,13 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         displayNode.SetAndObserveROINodeID(heartRoi.GetID())
         displayNode.CroppingEnabledOn()
         displayNode.SetVisibility(True)
+
+    def createEmptyCostVolume(self):
+        costVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+        costVolume.SetName(BVTextConst.costVolumePrefix)
+        costVolume.CreateDefaultDisplayNodes()
+        costVolume.CreateDefaultStorageNode()
+        return costVolume
 
     def doCrop(self, inputVolume, heartRoi, costVolume, scaling=0.4):
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
