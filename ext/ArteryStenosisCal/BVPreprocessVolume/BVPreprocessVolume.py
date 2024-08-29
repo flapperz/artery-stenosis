@@ -16,6 +16,7 @@ from slicer.parameterNodeWrapper import (
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
     ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
     ScriptedLoadableModuleWidget,
 )
 from slicer.util import VTKObservationMixin
@@ -484,3 +485,48 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+
+#
+# BVStenosisMeasurementTest
+#
+# --Test--
+#
+
+class BVPreprocessVolumeTest(ScriptedLoadableModuleTest):
+    """
+    This is the test case for your scripted module.
+    Uses ScriptedLoadableModuleTest base class, available at:
+    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
+    """
+
+    def setUp(self):
+        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
+        slicer.mrmlScene.Clear()
+
+    def runTest(self):
+        """Run as few or as many tests as needed here."""
+        self.setUp()
+        self.test_CreateDefaultScene()
+
+    def test_CreateDefaultScene(self):
+
+        logic = BVPreprocessVolumeLogic()
+
+        slicer.util.loadScene(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb'
+        )
+        slicer.util.loadMarkups(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/LCX-D.mrk.json'
+        )
+        slicer.util.loadMarkups(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/RCA-D.mrk.json'
+        )
+        roiNode = slicer.util.loadNodeFromFile(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/R.mrk.json'
+        )
+        volumeNode = slicer.util.getNode('14: Body Soft Tissue')
+        costVolume = logic.createEmptyCostVolume()
+        logic.process(volumeNode, roiNode, costVolume)
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule('BVStenosisMeasurement')
