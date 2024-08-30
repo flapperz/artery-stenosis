@@ -201,6 +201,15 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             if firstVolumeNode:
                 self._parameterNode.inputVolume = firstVolumeNode
 
+        preprocessParameterNode = (
+            slicer.modules.bvpreprocessvolume.widgetRepresentation()
+            .self()
+            .logic.getParameterNode()
+        )
+        if not self._parameterNode.costVolume and preprocessParameterNode.costVolume:
+            self._parameterNode.costVolume = preprocessParameterNode.costVolume
+
+
         #
         # initialize internal parameter
         #
@@ -723,10 +732,12 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
 
         return ladNode, lcxDNode, rcaDNode, volumeNode, roiNode
 
-    def runPreprocessVolume(self, volumeNode, roiNode, costVolume=None):
-        preprocessLogic = (
-            slicer.modules.bvpreprocessvolume.widgetRepresentation().self().logic
+    def runPreprocessVolume(self, volumeNode, roiNode):
+        preprocessWidget = (
+            slicer.modules.bvpreprocessvolume.widgetRepresentation().self()
         )
-        costVolume = preprocessLogic.createEmptyCostVolume()
-        preprocessLogic.process(volumeNode, roiNode, costVolume)
+        preprocessWidget.ui.inputVolumeSelector.setCurrentNode(volumeNode)
+        preprocessWidget.ui.heartROISelector.setCurrentNode(roiNode)
+        preprocessWidget.onApplyButton()
+        costVolume = preprocessWidget.logic.getParameterNode().costVolume
         return costVolume

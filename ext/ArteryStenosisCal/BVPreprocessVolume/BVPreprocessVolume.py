@@ -66,6 +66,9 @@ class BVPreprocessVolumeParameterNode:
     heartRoi: vtkMRMLMarkupsROINode
     costVolume: vtkMRMLScalarVolumeNode
 
+    # No widget counterpart
+    sdfVolume: vtkMRMLScalarVolumeNode
+
 
 #
 # BVPreprocessVolumeWidget
@@ -310,12 +313,17 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         ):
             inputVolume = self._parameterNode.inputVolume
             heartRoi = self._parameterNode.heartRoi
+
             if not self._parameterNode.costVolume:
-                self._parameterNode.costVolume = self.logic.createEmptyCostVolume()
+                self._parameterNode.costVolume = self.logic.createEmptyOutputVolume()
             costVolume = self._parameterNode.costVolume
 
+            if not self._parameterNode.sdfVolume:
+                self._parameterNode.sdfVolume = self.logic.createEmptyOutputVolume()
+            sdfVolume = self._parameterNode.sdfVolume
+
             if self.logic.validateHeartROI(inputVolume, heartRoi):
-                self.logic.process(inputVolume, heartRoi, costVolume)
+                self.logic.process(inputVolume, heartRoi, costVolume, sdfVolume)
                 self.logic.renderDebugCroppedVolume(inputVolume, heartRoi, costVolume)
 
                 self.ui.MRMLMarkupsROIWidget.setInteractiveMode(False)
@@ -405,7 +413,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         displayNode.CroppingEnabledOn()
         displayNode.SetVisibility(True)
 
-    def createEmptyCostVolume(self):
+    def createEmptyOutputVolume(self):
         costVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         costVolume.SetName(BVTextConst.costVolumePrefix)
         costVolume.CreateDefaultDisplayNodes()
@@ -459,6 +467,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         inputVolume: vtkMRMLScalarVolumeNode,
         heartRoi: vtkMRMLMarkupsROINode,
         costVolume: vtkMRMLScalarVolumeNode,
+        sdfVolume: vtkMRMLScalarVolumeNode
     ) -> None:
         """
         Run the processing algorithm.
@@ -470,7 +479,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         :param showResult: show output volume in slice viewers
         """
 
-        if not inputVolume or not costVolume:
+        if not (inputVolume and heartRoi and costVolume and sdfVolume):
             raise ValueError('Input or output volume is invalid')
 
         import time
@@ -481,6 +490,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
         self.doCrop(inputVolume, heartRoi, costVolume)
+
         self.doPreprocessIntensity(costVolume)
 
         stopTime = time.time()
@@ -510,7 +520,6 @@ class BVPreprocessVolumeTest(ScriptedLoadableModuleTest):
 
     def test_CreateDefaultScene(self):
 
-        logic = BVPreprocessVolumeLogic()
 
         slicer.util.loadScene(
             '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb'
@@ -525,8 +534,13 @@ class BVPreprocessVolumeTest(ScriptedLoadableModuleTest):
             '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/R.mrk.json'
         )
         volumeNode = slicer.util.getNode('14: Body Soft Tissue')
-        costVolume = logic.createEmptyCostVolume()
-        logic.process(volumeNode, roiNode, costVolume)
+
+        widget = (
+            slicer.modules.bvpreprocessvolume.widgetRepresentation().self()
+        )
+        widget.ui.inputVolumeSelector.setCurrentNode(volumeNode)
+        widget.ui.heartROISelector.setCurrentNode(roiNode)
+        widget.onApplyButton()
 
         mainWindow = slicer.util.mainWindow()
         mainWindow.moduleSelector().selectModule('BVStenosisMeasurement')
