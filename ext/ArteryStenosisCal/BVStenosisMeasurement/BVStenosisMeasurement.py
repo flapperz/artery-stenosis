@@ -688,14 +688,15 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
 
         # run craeteGuideLine
 
-        for (name, markupsNode) in zip(('LAD', 'LCX', 'RCA'), (ladNode, lcxDNode, rcaDNode)):
+        for name, markersIndices, markupsNode in zip(
+            ('LAD', 'LCX', 'RCA'), ((0, -1), (0, 15, -1), (0, -1)), (ladNode, lcxDNode, rcaDNode)
+        ):
             startTime = time.time()
 
             markupsArray = slicer.util.arrayFromMarkupsControlPoints(markupsNode)
 
             markersNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
             markersNode.SetName(f'SEED_SPARSE_{name}')
-            markersIndices = (0, -1)
             slicer.util.updateMarkupsControlPointsFromArray(markersNode, markupsArray[markersIndices, :])
 
             curveNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
