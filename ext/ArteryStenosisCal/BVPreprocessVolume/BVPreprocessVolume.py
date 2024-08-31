@@ -324,7 +324,7 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
             if self.logic.validateHeartROI(inputVolume, heartRoi):
                 self.logic.process(inputVolume, heartRoi, costVolume, sdfVolume)
-                self.logic.renderDebugCroppedVolume(inputVolume, heartRoi, costVolume)
+                # self.logic.renderDebugCroppedVolume(inputVolume, heartRoi, costVolume)
 
                 self.ui.MRMLMarkupsROIWidget.setInteractiveMode(False)
             else:
