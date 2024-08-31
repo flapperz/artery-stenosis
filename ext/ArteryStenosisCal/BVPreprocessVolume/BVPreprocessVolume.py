@@ -320,6 +320,7 @@ class BVPreprocessVolumeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
             if not self._parameterNode.sdfVolume:
                 self._parameterNode.sdfVolume = self.logic.createEmptyOutputVolume()
+                self._parameterNode.sdfVolume.SetName("BV_SDFVOLUME")
             sdfVolume = self._parameterNode.sdfVolume
 
             if self.logic.validateHeartROI(inputVolume, heartRoi):
