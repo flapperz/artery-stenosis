@@ -437,31 +437,6 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
         slicer.mrmlScene.RemoveNode(cropVolumeParameters)
 
-    def doPreprocessIntensity(self, costVolume):
-
-        AIR_THRESHOLD = -150
-
-        volArray: np.array = slicer.util.arrayFromVolume(costVolume).copy()
-        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
-
-        # apply polynomial
-        coef = [-3.912e-1, 2.689e0, 5.395e-3, 3.706e-6]
-        volArray = np.polynomial.polynomial.polyval(
-            volArray, coef
-        )
-        volArray = volArray.astype(np.int32)
-        AIR_THRESHOLD = np.polynomial.polynomial.polyval(-150, coef)
-        print(f"{AIR_THRESHOLD=}")
-
-        # threshold
-        COST_OFFSET = 4000
-        volArray[volArray > AIR_THRESHOLD] = 4000000
-        volArray[volArray <= AIR_THRESHOLD] += COST_OFFSET
-
-        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {volArray.dtype}')
-
-        slicer.util.updateVolumeFromArray(costVolume, volArray)
-
     def process(
         self,
         inputVolume: vtkMRMLScalarVolumeNode,
@@ -491,7 +466,123 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         self.doCrop(inputVolume, heartRoi, costVolume)
 
-        self.doPreprocessIntensity(costVolume)
+        # TODO may be we can use only one array here
+        sourceArray = slicer.util.arrayFromVolume(costVolume).copy()
+        bufferArray = sourceArray.copy()
+
+
+        #
+        # Create SDF
+        #
+
+        import SimpleITK as sitk
+        import sitkUtils as su
+
+        # TODO: work for guideline but cavity mark leak in to rca
+        SDF_MIN_INSIDE = -300
+        SDF_MIN_SQUARE_VALUE = 41
+        CAVITY_DILATE_STEP = 6
+
+        bufferArray[sourceArray > SDF_MIN_INSIDE] = -1
+        bufferArray[sourceArray <= SDF_MIN_INSIDE] = 0
+
+        sdfFilter = sitk.SignedMaurerDistanceMapImageFilter()
+        sdfFilter.SetBackgroundValue(0.0)
+        sdfFilter.SetDebug(False)
+        sdfFilter.SetInsideIsPositive(False)
+        sdfFilter.SetNumberOfThreads(8)
+        sdfFilter.SetNumberOfWorkUnits(0)
+        sdfFilter.SetSquaredDistance(True)
+        sdfFilter.SetUseImageSpacing(False)
+
+        slicer.util.updateVolumeFromArray(costVolume, bufferArray)
+        costSITKImage = su.PullVolumeFromSlicer(costVolume)
+        sdfSITKImage = sdfFilter.Execute(costSITKImage)
+        # sitk.GetArrayFromImage(image)
+        su.PushVolumeToSlicer(sdfSITKImage, sdfVolume)
+        slicer.util.updateVolumeFromArray(costVolume, sourceArray)
+
+        #
+        # Drill Plaque
+        #
+
+        grindPeakModule = slicer.modules.grayscalegrindpeakimagefilter
+        grindPeakParameter = {
+            'inputVolume': costVolume,
+            'outputVolume': costVolume,
+        }
+        grindPeakCliNode = slicer.cli.createNode(grindPeakModule, grindPeakParameter)
+        slicer.cli.runSync(grindPeakModule, grindPeakCliNode)
+        bufferArray = slicer.util.arrayFromVolume(costVolume)
+        # peak diff
+        bufferArray = sourceArray - bufferArray
+        # TODO: pass through fornow change to adaptive depend on plaque (may be sdf) or erode diff
+        PLAQUE_DIFF_MIN = 50
+        PLAQUE_DIFF_MAX = 340
+
+        sourceArray[(bufferArray > PLAQUE_DIFF_MIN) & (bufferArray < PLAQUE_DIFF_MAX)] = -200
+
+        #
+        # Intensity
+        #
+
+        bufferArray = sourceArray.copy()
+        AIR_THRESHOLD = -150
+
+        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {bufferArray.dtype}')
+
+        # apply polynomial
+        coef = [-3.912e-1, 2.689e0, 5.395e-3, 3.706e-6]
+        bufferArray = np.polynomial.polynomial.polyval(
+            bufferArray, coef
+        )
+        bufferArray = bufferArray.astype(np.int32)
+        AIR_THRESHOLD = np.polynomial.polynomial.polyval(-150, coef)
+        print(f"{AIR_THRESHOLD=}")
+
+        CUTOFF_THRESHOLD = -500
+        bufferArray[bufferArray < CUTOFF_THRESHOLD] = CUTOFF_THRESHOLD
+        bufferArray[bufferArray > AIR_THRESHOLD] = 4000000
+        bufferArray += -CUTOFF_THRESHOLD + 100
+
+        # threshold
+        # COST_OFFSET = 4000
+        # bufferArray[bufferArray > AIR_THRESHOLD] = 4000000
+        # bufferArray[bufferArray <= AIR_THRESHOLD] += COST_OFFSET
+        # bufferArray += COST_OFFSET
+
+        logging.debug(f'Type of output {costVolume.GetImageData().GetScalarTypeAsString()} -py-> {bufferArray.dtype}')
+
+        sourceArray = bufferArray.copy()
+
+        #
+        # Fill Cavity
+        #
+
+        import scipy
+
+        structure = np.zeros((3,3,3))
+        structure[:,1,1] = 1
+        structure[1,:,1] = 1
+        structure[1,1,:] = 1
+
+
+        bufferArray = slicer.util.arrayFromVolume(sdfVolume).copy()
+
+        bufferArray = bufferArray >= SDF_MIN_SQUARE_VALUE
+        if CAVITY_DILATE_STEP:
+            bufferArray = scipy.ndimage.binary_dilation(bufferArray, structure, 6)
+
+        sourceArray[bufferArray] = 20000000
+
+        slicer.util.updateVolumeFromArray(costVolume, sourceArray)
+
+        #
+        # end preprocess
+        #
+
+        # set slice viewer back to patient
+        slicer.util.setSliceViewerLayers(background=inputVolume, foreground=None)
 
         stopTime = time.time()
         logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
