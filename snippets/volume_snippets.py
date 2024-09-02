@@ -103,3 +103,12 @@ def createEmptyVolume(self, name: str) -> vtkMRMLScalarVolumeNode:
     outputVolume.CreateDefaultDisplayNodes()
     outputVolume.CreateDefaultStorageNode()
     return outputVolume
+
+# convol
+# create cross
+structure = np.zeros((3,3,3))
+structure[:,1,1] = 1
+structure[1,:,1] = 1
+structure[1,1,:] = 1
+binsdf[:] = source > 41
+binsdf[:] = scipy.ndimage.binary_dilation(binsdf, structure, 4)
