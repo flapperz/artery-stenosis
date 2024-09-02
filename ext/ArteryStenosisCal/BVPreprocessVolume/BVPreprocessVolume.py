@@ -3,6 +3,8 @@ from typing import Optional
 
 import numpy as np
 import slicer
+import slicer.cli
+import slicer.util
 import vtk
 from BVPreprocessVolumeLib.BVPVConstants import BVTextConst
 from slicer import (
@@ -421,7 +423,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         costVolume.CreateDefaultStorageNode()
         return costVolume
 
-    def doCrop(self, inputVolume, heartRoi, costVolume, scaling=0.4):
+    def doCrop(self, inputVolume, heartRoi, costVolume, scaling):
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLCropVolumeParametersNode'
         )
@@ -465,7 +467,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
-        self.doCrop(inputVolume, heartRoi, costVolume)
+        self.doCrop(inputVolume, heartRoi, costVolume, scaling=1)
 
         # TODO may be we can use only one array here
         sourceArray = slicer.util.arrayFromVolume(costVolume).copy()
@@ -479,9 +481,10 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         import SimpleITK as sitk
         import sitkUtils as su
 
+
         # TODO: work for guideline but cavity mark leak in to rca
         SDF_MIN_INSIDE = -300
-        SDF_MIN_SQUARE_VALUE = 41
+        SDF_MIN_SQUARE_VALUE = 30
         CAVITY_DILATE_STEP = 6
 
         bufferArray[sourceArray > SDF_MIN_INSIDE] = -1
