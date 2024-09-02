@@ -717,18 +717,21 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
 
     def loadScene(self):
         slicer.util.loadScene(
-            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb'
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/update3.mrb'
         )
-        lcxDNode = slicer.util.loadMarkups(
-            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/LCX-D.mrk.json'
-        )
-        rcaDNode = slicer.util.loadMarkups(
-            '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/RCA-D.mrk.json'
-        )
-        roiNode = slicer.util.loadNodeFromFile(
-            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/R.mrk.json'
-        )
+        # lcxDNode = slicer.util.loadMarkups(
+        #     '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/LCX-D.mrk.json'
+        # )
+        # rcaDNode = slicer.util.loadMarkups(
+        #     '/Users/flap/Source/artery-stenosis/data/slicer-scene/markups/RCA-D.mrk.json'
+        # )
+        # roiNode = slicer.util.loadNodeFromFile(
+        #     '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/R.mrk.json'
+        # )
         ladNode = slicer.util.getNode('LAD')
+        lcxDNode = slicer.util.getNode('LCX-D')
+        rcaDNode = slicer.util.getNode('RCA-D')
+        roiNode = slicer.util.getNode('R')
         volumeNode = slicer.util.getNode('14: Body Soft Tissue')
 
         return ladNode, lcxDNode, rcaDNode, volumeNode, roiNode
