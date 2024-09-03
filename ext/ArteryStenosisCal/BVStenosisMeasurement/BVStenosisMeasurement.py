@@ -450,27 +450,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         startTime = time.time()
         logging.info('Processing started')
 
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        # TODO: maybe we can reuse cliNode / parameter node
-        # cliParams = {
-        #     'InputVolume': inputVolume.GetID(),
-        #     'OutputVolume': outputVolume.GetID(),
-        #     'ThresholdValue': imageThreshold,
-        #     'ThresholdType': 'Above' if invert else 'Below',
-        # }
-        # cliNode = slicer.cli.run(
-        #     slicer.modules.thresholdscalarvolume,
-        #     None,
-        #     cliParams,
-        #     wait_for_completion=True,
-        #     update_display=showResult,
-        # )
-
-        # # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        # slicer.mrmlScene.RemoveNode(cliNode)
-        mainWindow = slicer.util.mainWindow()
-
         # Commonly used node
+        mainWindow = slicer.util.mainWindow()
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
 
         #
