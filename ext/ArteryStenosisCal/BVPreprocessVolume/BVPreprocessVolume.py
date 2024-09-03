@@ -447,6 +447,57 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         costVolume: vtkMRMLScalarVolumeNode,
         sdfVolume: vtkMRMLScalarVolumeNode
     ) -> None:
+        if not (inputVolume and heartRoi and costVolume and sdfVolume):
+            raise ValueError('Input or output volume is invalid')
+
+        import time
+
+        startTime = time.time()
+        logging.info('Processing started')
+
+        heartRoi.GetDisplayNode().SetFillVisibility(False)
+
+        self.doCrop(inputVolume, heartRoi, costVolume, scaling=0.52)
+
+        # window sinc cropping
+        # TODO test with sinc
+
+        import SimpleITK as sitk
+        import sitkUtils as su
+
+        histogramFilter = sitk.AdaptiveHistogramEqualizationImageFilter()
+        # histogramFilter.SetAlpha(0.3)
+        histogramFilter.SetAlpha(0.6)
+        histogramFilter.SetBeta(0.3)
+        histogramFilter.SetRadius([3,3,3])
+
+        costSITKImage = su.PullVolumeFromSlicer(costVolume)
+        costSITKImage = histogramFilter.Execute(costSITKImage)
+        su.PushVolumeToSlicer(costSITKImage, costVolume)
+
+        sourceArray = slicer.util.arrayFromVolume(costVolume).copy()
+        sourceArray[sourceArray < -1000] = -1000
+        sourceArray += 1000
+        sourceArray[sourceArray < 450] = 100
+        slicer.util.updateVolumeFromArray(costVolume, sourceArray)
+
+        #
+        # end preprocess
+        #
+
+        # set slice viewer back to patient
+        slicer.util.setSliceViewerLayers(background=inputVolume, foreground=costVolume)
+
+        stopTime = time.time()
+        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+
+    def process_old(
+        self,
+        inputVolume: vtkMRMLScalarVolumeNode,
+        heartRoi: vtkMRMLMarkupsROINode,
+        costVolume: vtkMRMLScalarVolumeNode,
+        sdfVolume: vtkMRMLScalarVolumeNode
+    ) -> None:
         """
         Run the processing algorithm.
         Can be used without GUI widget.
