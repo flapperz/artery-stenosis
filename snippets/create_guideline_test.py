@@ -1,3 +1,4 @@
+# CTRL/CMD - G in slicer
 import time
 
 import slicer
@@ -10,8 +11,8 @@ costVolumeNode = slicer.util.getNode('BV_COSTVOLUME')
 
 logic = slicer.modules.bvstenosismeasurement.widgetRepresentation().self().logic
 
-indices = ((0, -1), (0, 15, -1), (0, -1))
-indices = ((0, -1), (0, 15, -1), (0, 8, -1))
+indices = ((0, -1), (0, -1), (0, -1))
+# indices = ((0, -1), (0, 15, -1), (0, 8, -1))
 
 for name, markersIndices, markupsNode in zip(
     ('LAD', 'LCX', 'RCA'), ((0, -1), (0, 15, -1), (0, -1)), (ladNode, lcxDNode, rcaDNode)
