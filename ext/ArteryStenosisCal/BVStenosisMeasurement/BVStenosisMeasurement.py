@@ -16,6 +16,7 @@ from slicer import (
     vtkMRMLMarkupsFiducialNode,
     vtkMRMLMarkupsNode,
     vtkMRMLScalarVolumeNode,
+    vtkMRMLSegmentationNode,
 )
 from slicer.parameterNodeWrapper import (
     WithinRange,
@@ -86,7 +87,8 @@ class BVStenosisMeasurementParameterNode:
     #
     # internal
     #
-    _guideLine: vtkMRMLMarkupsCurveNode
+    guideLine: vtkMRMLMarkupsCurveNode
+    segmentation: vtkMRMLSegmentationNode
 
 
 #
@@ -214,11 +216,11 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # initialize internal parameter
         #
 
-        if not self._parameterNode._guideLine:
+        if not self._parameterNode.guideLine:
             guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
-            guideLine.SetName(BVTextConst.guidelineName)
+            guideLine.SetName(self.ui.guideLineSelector.baseName)
             guideLine.SetCurveTypeToLinear()
-            self._parameterNode._guideLine = guideLine
+            self._parameterNode.guideLine = guideLine
 
     def setParameterNode(
         self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]
@@ -287,7 +289,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             cliNode = self.logic.createGuideLine(
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
-                self._parameterNode._guideLine,
+                self._parameterNode.guideLine,
             )
             self.ui.CLIProgressBar.setCommandLineModuleNode(cliNode)
         logging.debug('in _onMarkersModified')
@@ -327,16 +329,31 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 not self._parameterNode
                 or not self._parameterNode.inputVolume
                 or not self._parameterNode.costVolume
-                or not self._parameterNode._guideLine.GetNumberOfControlPoints() > 10
+                or not self._parameterNode.guideLine.GetNumberOfControlPoints() > 10
             ):
                 e = 'input invalid'
                 slicer.util.errorDisplay('Failed to compute results: ' + str(e))
                 return
+
+            if not self._parameterNode:
+                e = 'No ParameterNode'
+                slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
+                return
+            if not self._parameterNode.inputVolume or not self._parameterNode.costVolume:
+                e = 'No inputVolume or costVolume specified'
+                slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
+                return
+            if self._parameterNode.guideLine and not self._parameterNode.guideLine.GetNumberOfControlPoints() > 5:
+                e = 'No GuideLine or GuideLine to short'
+                slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
+                return
+
+
             self.logic.process(
                 self._parameterNode.inputVolume,
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
-                self._parameterNode._guideLine,
+                self._parameterNode.guideLine,
             )
 
             # # Compute inverted output (if needed)
