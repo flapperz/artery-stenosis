@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import slicer
 import slicer.util
 import vtk
 from slicer import (
@@ -8,12 +9,11 @@ from slicer import (
 )
 
 
-class CreateGuideLineController():
+class CreateGuideLineController:
     def __init__(self):
         self.createGuideLineCliNode = None
 
     def runCreateGuideLineAsync(self, costVolume, markers, guideLine, isSingleton=True):
-
         if self.createGuideLineCliNode and isSingleton:
             self.createGuideLineCliNode.Cancel()
 
@@ -42,17 +42,17 @@ class CreateGuideLineController():
         if isSingleton:
             cliNode = slicer.cli.run(BVCreateGuideLine, None, parameter)
             cliNode.AddObserver(
-                    vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
-                    self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=True),
-                    )
+                vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
+                self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=True),
+            )
             self.createGuideLineCliNode = cliNode
         else:
             # for test
             cliNode = slicer.cli.createNode(BVCreateGuideLine, parameter)
             cliNode.AddObserver(
-                    vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
-                    self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=False),
-                    )
+                vtkMRMLCommandLineModuleNode.StatusModifiedEvent,
+                self._createUpdateCb(ijk2rasMat, guideLine, jumpSliceOnComplete=False),
+            )
             slicer.cli.runSync(BVCreateGuideLine, cliNode)
 
         return cliNode
@@ -91,7 +91,10 @@ class CreateGuideLineController():
                     outIJK = [int(x) for x in outIJK.split(',')]
 
                     logging.debug(f'out path length: {len(outIJK)}')
-                    pathKJI = [[outIJK[i + 2], outIJK[i + 1], outIJK[i]] for i in range(0, len(outIJK), 3)]
+                    pathKJI = [
+                        [outIJK[i + 2], outIJK[i + 1], outIJK[i]]
+                        for i in range(0, len(outIJK), 3)
+                    ]
                     logging.debug(f'formatted: {pathKJI}')
                     self._createLinearCurve(pathKJI, guideLineNode, ijk2rasMat)
                     # MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
@@ -112,3 +115,69 @@ class CreateGuideLineController():
 
         return updateCb
 
+
+class VesselnessFilteringController:
+    @staticmethod
+    def createVesselnessVolume(
+        inputVolumeNode,
+        seedNode,
+        minDiameterMM,
+        maxDiameterMM,
+        contrast,
+        suppressPlate=10,
+        suppressBlob=10,
+        lowerThreshold=0.1,
+        isCalculateParameter=False,
+    ):
+        logic = slicer.modules.vesselnessfiltering.widgetRepresentation().self().logic
+
+        outputVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+        outputVolumeNode.CreateDefaultDisplayNodes()
+        outputDisplayNode = outputVolumeNode.GetDisplayNode()
+
+        # Set threshold
+        outputDisplayNode.AutoThresholdOff()
+        outputDisplayNode.SetLowerThreshold(lowerThreshold)
+        outputDisplayNode.SetUpperThreshold(1.0)
+        outputDisplayNode.ApplyThresholdOn()
+
+        # Set red colormap
+        outputDisplayNode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeRed')
+        outputDisplayNode.AutoWindowLevelOff()
+        outputDisplayNode.SetWindowLevelMinMax(-0.6, 2.0)
+
+        if isCalculateParameter:
+            vesselPositionIJK = logic.getIJKFromRAS(
+                inputVolumeNode, logic.getSeedPositionRAS(seedNode)
+            )
+            detectedDiameterVoxel = logic.getDiameter(
+                inputVolumeNode.GetImageData(), vesselPositionIJK
+            )
+            contrast = logic.calculateContrastMeasure(
+                inputVolumeNode.GetImageData(), vesselPositionIJK, detectedDiameterVoxel
+            )
+            minDiameterMM = min(inputVolumeNode.GetSpacing())
+            maxDiameterMM = detectedDiameterVoxel * min(inputVolumeNode.GetSpacing())
+
+        alpha = logic.alphaFromSuppressPlatesPercentage(suppressPlate)
+        beta = logic.betaFromSuppressBlobsPercentage(suppressBlob)
+
+        logging.info(
+            f'Vesselness parameter: {minDiameterMM=} {maxDiameterMM=} {alpha=} {beta=} {contrast=}'
+        )
+
+        previewRegionSizeVoxel = -1
+        previewRegionCenterRAS = None
+        logic.computeVesselnessVolume(
+            inputVolumeNode,
+            outputVolumeNode,
+            previewRegionCenterRAS,
+            previewRegionSizeVoxel,
+            minDiameterMM,
+            maxDiameterMM,
+            alpha,
+            beta,
+            contrast,
+        )
+
+        return outputVolumeNode

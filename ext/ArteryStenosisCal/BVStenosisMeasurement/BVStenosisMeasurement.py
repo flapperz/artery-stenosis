@@ -591,17 +591,42 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         #
 
         # Create patch volume
-        timer.start('Create Patch')
-
+        timer.start('Create Patch ROI')
         patchROINode = self.createPatchROI(costVolumeNode, guideLineNode)
-        patchVolumeNode = self.createPatchVolume(inputVolumeNode, patchROINode)
-
         timer.stop()
-        logging.info(timer.generateReport())
+
+        timer.start('Create Patch Volume')
+        patchVolumeNode = self.createPatchVolume(inputVolumeNode, patchROINode)
+        patchVolumeNode.SetName("BV_PatchVolume")
+        timer.stop()
 
         # Create vesselness volume
+        timer.start('Create Vesselness volume')
+        from BVStenosisMeasurementLib.Controllers import VesselnessFilteringController
+
+        # TODO: sampling from curve is better ?
+        guideSeedControlPoints = slicer.util.arrayFromMarkupsControlPoints(guideLineNode)
+
+        guideSeedNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
+        guideSeedNode.SetName("BV_GuideSeed")
+        slicer.util.updateMarkupsControlPointsFromArray(guideSeedNode, guideSeedControlPoints)
+
+        vesselnessVolumeNode = VesselnessFilteringController.createVesselnessVolume(
+            patchVolumeNode,
+            guideSeedNode,
+            minDiameterMM=None,
+            maxDiameterMM=None,
+            contrast=None,
+            suppressPlate=10,
+            suppressBlob=10,
+            lowerThreshold=0.1,
+            isCalculateParameter=True,
+        )
+        vesselnessVolumeNode.SetName("BV_Vesselness")
+        timer.stop()
 
         slicer.mrmlScene.RemoveNode(patchROINode)
+        slicer.mrmlScene.RemoveNode(guideSeedNode)
 
         return
 
