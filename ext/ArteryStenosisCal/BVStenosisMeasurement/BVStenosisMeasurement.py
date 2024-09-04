@@ -325,21 +325,15 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
             #     self._parameterNode._guideLine
             # )
             # # Compute output
-            if (
-                not self._parameterNode
-                or not self._parameterNode.inputVolume
-                or not self._parameterNode.costVolume
-                or not self._parameterNode.guideLine.GetNumberOfControlPoints() > 10
-            ):
-                e = 'input invalid'
-                slicer.util.errorDisplay('Failed to compute results: ' + str(e))
-                return
 
             if not self._parameterNode:
                 e = 'No ParameterNode'
                 slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
                 return
-            if not self._parameterNode.inputVolume or not self._parameterNode.costVolume:
+            if (
+                not self._parameterNode.inputVolume
+                or not self._parameterNode.costVolume
+            ):
                 e = 'No inputVolume or costVolume specified'
                 slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
                 return
@@ -347,7 +341,6 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 e = 'No GuideLine or GuideLine to short'
                 slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
                 return
-
 
             self.logic.process(
                 self._parameterNode.inputVolume,
