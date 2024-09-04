@@ -354,17 +354,6 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 self._parameterNode.guideLine,
             )
 
-            # # Compute inverted output (if needed)
-            # if self.ui.invertedOutputSelector.currentNode():
-            #     # If additional output volume is selected then result with inverted threshold is written there
-            #     self.logic.process(
-            #         self.ui.inputVolumeSelector.currentNode(),
-            #         self.ui.invertedOutputSelector.currentNode(),
-            #         self.ui.imageThresholdSliderWidget.value,
-            #         not self.ui.invertOutputCheckBox.checked,
-            #         showResult=False,
-            #     )
-
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
         if self._parameterNode and self._parameterNode.inputVolume:
             self.logic.adjustVolumeDisplay(self._parameterNode.inputVolume)
