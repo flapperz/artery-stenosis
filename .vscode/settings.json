@@ -1,5 +1,9 @@
 {
     "python.defaultInterpreterPath": "/opt/sr561/python-install/bin/PythonSlicer",
+    "python.analysis.extraPaths": [
+        "/Users/flap/Source/SlicerExtension-VMTK/LevelSetSegmentation",
+        "/Users/flap/Source/SlicerExtension-VMTK/VesselnessFiltering",
+    ],
     
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
     "cmake.allowCommentsInPresetsFile": true,
