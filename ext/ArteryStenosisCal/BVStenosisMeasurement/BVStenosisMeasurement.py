@@ -574,7 +574,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         import time
 
-        startTime = time.time()
+        from BVStenosisMeasurementLib.Timer import Timer
+
+        timer = Timer(isDebug=True)
         logging.info('Processing started')
 
         # Commonly used node
@@ -586,9 +588,13 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         #
 
         # Create patch volume
+        timer.start('Create Patch')
 
         patchROINode = self.createPatchROI(costVolumeNode, guideLineNode)
         patchVolumeNode = self.createPatchVolume(inputVolumeNode, patchROINode)
+
+        timer.stop()
+        logging.info(timer.generateReport())
 
         # Create vesselness volume
 
@@ -778,8 +784,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
                 e = f'maximum area is zero {min_area=}, {max_area=}'
                 slicer.util.errorDisplay('Failed to compute stenosis: ' + str(e))
 
-        stopTime = time.time()
-        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
 
 #
 # BVStenosisMeasurementTest
