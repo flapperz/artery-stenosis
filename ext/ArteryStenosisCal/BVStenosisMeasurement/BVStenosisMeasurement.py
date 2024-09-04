@@ -3,13 +3,13 @@ import os
 from importlib import reload
 from typing import Annotated, Optional
 
+import BVStenosisMeasurementLib.Controllers as Controllers
 import numpy as np
 import slicer
 import slicer.util
 import vtk
 from BVStenosisMeasurementLib import MRMLUtils
 from BVStenosisMeasurementLib.BVConstants import BVTextConst
-from BVStenosisMeasurementLib.Controllers import CreateGuideLineController
 from slicer import (
     vtkMRMLCommandLineModuleNode,
     vtkMRMLMarkupsCurveNode,
@@ -32,6 +32,7 @@ from slicer.ScriptedLoadableModule import (
 from slicer.util import VTKObservationMixin
 
 reload(MRMLUtils)
+reload(Controllers)
 
 #
 # BVStenosisMeasurement
@@ -385,7 +386,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         logging.debug('BVStenosisMeasurementLogic initialize')
         ScriptedLoadableModuleLogic.__init__(self)
 
-        self.createGuideLineController = CreateGuideLineController()
+        self.createGuideLineController = Controllers.CreateGuideLineController()
 
         # debug volume
         # shNode = slicer.vtkMRMLSubjectHierachyNode.GetSubjectHierachyNode(slicer.mrmlScene)
@@ -602,7 +603,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # Create vesselness volume
         timer.start('Create Vesselness volume')
-        from BVStenosisMeasurementLib.Controllers import VesselnessFilteringController
 
         # TODO: sampling from curve is better ?
         guideSeedControlPoints = slicer.util.arrayFromMarkupsControlPoints(guideLineNode)
@@ -611,16 +611,18 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         guideSeedNode.SetName("BV_GuideSeed")
         slicer.util.updateMarkupsControlPointsFromArray(guideSeedNode, guideSeedControlPoints)
 
-        vesselnessVolumeNode = VesselnessFilteringController.createVesselnessVolume(
-            patchVolumeNode,
-            guideSeedNode,
-            minDiameterMM=None,
-            maxDiameterMM=None,
-            contrast=None,
-            suppressPlate=10,
-            suppressBlob=10,
-            lowerThreshold=0.1,
-            isCalculateParameter=True,
+        vesselnessVolumeNode = (
+            Controllers.VesselnessFilteringController.createVesselnessVolume(
+                patchVolumeNode,
+                guideSeedNode,
+                minDiameterMM=None,
+                maxDiameterMM=None,
+                contrast=None,
+                suppressPlate=10,
+                suppressBlob=10,
+                lowerThreshold=0.1,
+                isCalculateParameter=True,
+            )
         )
         vesselnessVolumeNode.SetName("BV_Vesselness")
         timer.stop()
