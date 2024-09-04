@@ -79,7 +79,6 @@ class BVStenosisMeasurementParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
-    costVolume: vtkMRMLScalarVolumeNode
     markers: vtkMRMLMarkupsFiducialNode
 
     invertThreshold: bool = False
@@ -89,6 +88,7 @@ class BVStenosisMeasurementParameterNode:
     #
     guideLine: vtkMRMLMarkupsCurveNode
     segmentation: vtkMRMLSegmentationNode
+    costVolume: vtkMRMLScalarVolumeNode
 
 
 #

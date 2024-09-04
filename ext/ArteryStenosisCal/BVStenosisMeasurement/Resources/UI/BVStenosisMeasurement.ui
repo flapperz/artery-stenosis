@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>326</width>
-    <height>419</height>
+    <height>496</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -65,53 +65,6 @@
         </item>
        </layout>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_7">
-        <property name="text">
-         <string>Cost volume:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="costVolumeSelector">
-        <property name="nodeTypes">
-         <stringlist notr="true">
-          <string>vtkMRMLScalarVolumeNode</string>
-         </stringlist>
-        </property>
-        <property name="hideChildNodeTypes">
-         <stringlist notr="true"/>
-        </property>
-        <property name="baseName">
-         <string/>
-        </property>
-        <property name="addEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="removeEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="editEnabled">
-         <bool>true</bool>
-        </property>
-        <property name="renameEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="interactionNodeSingletonTag">
-         <string notr="true"/>
-        </property>
-        <property name="SlicerParameterName" stdset="0">
-         <string>costVolume</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Markers:</string>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="1">
        <widget class="qMRMLNodeComboBox" name="markersSelector">
         <property name="nodeTypes">
@@ -139,6 +92,13 @@
         </property>
         <property name="SlicerParameterName" stdset="0">
          <string>markers</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Markers:</string>
         </property>
        </widget>
       </item>
@@ -269,6 +229,49 @@
         </property>
         <property name="SlicerParameterName" stdset="0">
          <string>segmentation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Cost volume:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="qMRMLNodeComboBox" name="costVolumeSelector">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="nodeTypes">
+         <stringlist notr="true">
+          <string>vtkMRMLScalarVolumeNode</string>
+         </stringlist>
+        </property>
+        <property name="hideChildNodeTypes">
+         <stringlist notr="true"/>
+        </property>
+        <property name="baseName">
+         <string/>
+        </property>
+        <property name="addEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="removeEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="editEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="renameEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="interactionNodeSingletonTag">
+         <string notr="true"/>
+        </property>
+        <property name="SlicerParameterName" stdset="0">
+         <string>costVolume</string>
         </property>
        </widget>
       </item>
