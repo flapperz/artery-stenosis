@@ -216,11 +216,6 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # initialize internal parameter
         #
 
-        if not self._parameterNode.guideLine:
-            guideLine = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsCurveNode')
-            guideLine.SetName(self.ui.guideLineSelector.baseName)
-            guideLine.SetCurveTypeToLinear()
-            self._parameterNode.guideLine = guideLine
 
     def setParameterNode(
         self, inputParameterNode: Optional[BVStenosisMeasurementParameterNode]
@@ -281,11 +276,20 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
     def _onMarkersModified(self, caller=None, event=None):
         """Handle markers change case: move, add, change markups node, reorder ?"""
-        # TODO: check can apply
+        # TODO: check is markers in bound
         if (
             self._parameterNode.inputVolume
+            and self._parameterNode.costVolume
             and self._parameterNode.markers.GetNumberOfControlPoints() > 1
         ):
+            if not self._parameterNode.guideLine:
+                guideLine = slicer.mrmlScene.AddNewNodeByClass(
+                    'vtkMRMLMarkupsCurveNode'
+                )
+                guideLine.SetName(self.ui.guideLineSelector.baseName)
+                guideLine.SetCurveTypeToLinear()
+                self._parameterNode.guideLine = guideLine
+
             cliNode = self.logic.createGuideLine(
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
