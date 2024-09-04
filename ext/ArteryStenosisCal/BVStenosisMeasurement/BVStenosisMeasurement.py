@@ -420,10 +420,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
     def process(
         self,
-        inputVolume: vtkMRMLScalarVolumeNode,
-        costVolume: vtkMRMLScalarVolumeNode,
-        markers: vtkMRMLMarkupsFiducialNode,
-        guideLine: vtkMRMLMarkupsCurveNode,
+        inputVolumeNode: vtkMRMLScalarVolumeNode,
+        costVolumeNode: vtkMRMLScalarVolumeNode,
+        markersNode: vtkMRMLMarkupsFiducialNode,
+        guideLineNode: vtkMRMLMarkupsCurveNode,
     ) -> None:
         """
         Run the processing algorithm.
@@ -448,10 +448,13 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
 
         #
-        # --- Segmentation
+        # Segmentation
         #
+        patchVolumeNode = self.createPatchROI()
 
-        slicer.util.setSliceViewerLayers(background=costVolume)
+        return
+
+        slicer.util.setSliceViewerLayers(background=costVolumeNode)
         slicer.app.processEvents()
         mainWindow.moduleSelector().selectModule('GuidedArterySegmentation')
 
@@ -465,7 +468,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # must be call before curve selector
         vmtkSegWidget.ui.inputSliceNodeSelector.setCurrentNode(sliceNode)
-        vmtkSegWidget.ui.inputCurveSelector.setCurrentNode(guideLine)
+        vmtkSegWidget.ui.inputCurveSelector.setCurrentNode(guideLineNode)
         vmtkSegWidget._parameterNode.inputIndensityTolerance = 100
         # in mm.
         vmtkSegWidget._parameterNode.neighbourhoodSize = 1.4
@@ -475,7 +478,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         vmtkSegWidget.ui.applyButton.click()
 
         # set slice background back
-        slicer.util.setSliceViewerLayers(background=inputVolume)
+        slicer.util.setSliceViewerLayers(background=inputVolumeNode)
         slicer.app.processEvents()
 
         segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
@@ -487,6 +490,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         #
         # --- Extract Centerline
         #
+
         mainWindow.moduleSelector().selectModule('ExtractCenterline')
 
         ecWidget = slicer.modules.extractcenterline.widgetRepresentation().self()
@@ -507,20 +511,20 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # TODO maybe we can use logic directly here
         endPointsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-        endPointsNode.SetName('Endpoints_' + markers.GetName())
-        slicer.util.updateMarkupsControlPointsFromArray(endPointsNode, slicer.util.arrayFromMarkupsControlPoints(guideLine))
+        endPointsNode.SetName('Endpoints_' + markersNode.GetName())
+        slicer.util.updateMarkupsControlPointsFromArray(endPointsNode, slicer.util.arrayFromMarkupsControlPoints(guideLineNode))
 
         slicer.app.processEvents()
         ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
 
         centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        centerlineModelNode.SetName('Centerline_model_' + markers.GetName())
+        centerlineModelNode.SetName('Centerline_model_' + markersNode.GetName())
         ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
 
         centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLMarkupsCurveNode'
         )
-        centerlineCurveNode.SetName('Centerline_curve_' + markers.GetName())
+        centerlineCurveNode.SetName('Centerline_curve_' + markersNode.GetName())
         ecWidget.ui.outputCenterlineCurveSelector.setCurrentNode(centerlineCurveNode)
         ecWidget.onAutoDetectEndPoints()
 
@@ -537,7 +541,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
         exportFolderItemId = shNode.CreateFolderItem(
-            shNode.GetSceneItemID(), 'Segments_' + guideLine.GetID()
+            shNode.GetSceneItemID(), 'Segments_' + guideLineNode.GetID()
         )
         slicer.modules.segmentations.logic().ExportSegmentsToModels(
             segmentationNode, [segmentID], exportFolderItemId
