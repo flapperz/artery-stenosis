@@ -497,6 +497,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             inputVolumeNode,
             patchROINode
     ):
+        # Create simulate contrast patch
+
         SPACING_MM = 0.25
         # HIST_RADIUS = [7,7,7]
         HIST_RADIUS = 5
@@ -548,6 +550,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         sitkImage = su.PullVolumeFromSlicer(patchVolume)
         sitkImage = histogramFilter.Execute(sitkImage)
+        sitkImage *= -1
         su.PushVolumeToSlicer(sitkImage, patchVolume)
 
         return patchVolume
