@@ -648,7 +648,8 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
     def runTest(self):
         self.setUp()
         # self.test_BVStenosisMeasurement1()
-        self.test_GuideLines()
+        # self.test_GuideLines()
+        self.test_Segmentation()
 
     def test_BVStenosisMeasurement1(self):
         self.delayDisplay('Starting the test')
@@ -657,6 +658,26 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         slicer.util.loadScene( '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/2023-10-26-Scene.mrb')
 
         self.delayDisplay('Test passed')
+
+    def test_Segmentation(self):
+        mainWindow = slicer.util.mainWindow()
+
+        slicer.util.loadScene(
+            '/Users/flap/Source/artery-stenosis/data/slicer-scene/slicer_gs_clean_update2mrb/createsegtest.mrb'
+        )
+
+        ladNode = slicer.util.getNode('LAD')
+        lcxDNode = slicer.util.getNode('LCX-D')
+        rcaDNode = slicer.util.getNode('RCA-D')
+        roiNode = slicer.util.getNode('R')
+        inputVolumeNode = slicer.util.getNode('14: Body Soft Tissue')
+        costVolumeNode = slicer.util.getNode('BV_COSTVOLUME')
+
+        ladGLNode = slicer.util.getNode('GL_LAD')
+        markers = slicer.util.getNode('SEED_SPARSE_LAD')
+
+        logic = BVStenosisMeasurementLogic()
+        logic.process(inputVolumeNode, costVolumeNode, markers, ladGLNode)
 
     def test_GuideLines(self):
         import time
