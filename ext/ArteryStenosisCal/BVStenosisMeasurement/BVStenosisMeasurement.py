@@ -412,9 +412,11 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
     ) -> vtkMRMLCommandLineModuleNode:
         return self.createGuideLineController.runCreateGuideLineAsync(costVolume, markers, guideLine, isSingleton)
 
-    def createPatchROI(self):
-        costVolumeNode = self.getParameterNode().costVolume
-
+    def createPatchROI(
+        self,
+        costVolumeNode: vtkMRMLScalarVolumeNode,
+        guideLineNode: vtkMRMLMarkupsCurveNode,
+    ):
         # recreate heartROI
         heartROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode')
         cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
@@ -424,12 +426,11 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         cropVolumeParameters.SetROINodeID(heartROINode.GetID())
         slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
 
-        guideLineNode = self.getParameterNode().guideLine
-
+        nControlPoints = guideLineNode.GetNumberOfControlPoints()
         controlPoints = np.array(
             [
                 guideLineNode.GetNthControlPointPosition(i)
-                for i in range(guideLineNode.GetNumberOfControlPoints())
+                for i in range(nControlPoints)
             ]
         )
 
@@ -475,6 +476,10 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             heartCenter + heartRadius, patchCenter + patchRadius
         )
 
+        # Cleanup
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(heartROINode)
+
         # If there is an intersection
         if np.all(intersectMinBounds <= intersectMaxBounds):
             intersectCenter = (intersectMinBounds + intersectMaxBounds) / 2.0
@@ -486,6 +491,66 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             return Exception(e)
 
         return patchROINode
+
+    def createPatchVolume(
+            self,
+            inputVolumeNode,
+            patchROINode
+    ):
+        SPACING_MM = 0.25
+        # HIST_RADIUS = [7,7,7]
+        HIST_RADIUS = 5
+        HIST_ALPHA = 0.6
+        HIST_BETA = 0.3
+
+        patchVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+
+        # Create reference resample volume
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLCropVolumeParametersNode'
+        )
+        cropVolumeParameters.SetInputVolumeNodeID(inputVolumeNode.GetID())
+        cropVolumeParameters.SetROINodeID(patchROINode.GetID())
+        cropVolumeParameters.SetOutputVolumeNodeID(patchVolume.GetID())
+        cropVolumeParameters.SetInterpolationMode(
+            cropVolumeParameters.InterpolationNearestNeighbor
+        )
+
+        # Assume all volume have minimum spacing of 0.78125
+        spacingScaling = SPACING_MM / 0.78125
+        cropVolumeParameters.SetVoxelBased(False)
+        cropVolumeParameters.SetSpacingScalingConst(spacingScaling)
+        cropVolumeParameters.SetIsotropicResampling(True)
+        slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
+        slicer.mrmlScene.RemoveNode(cropVolumeParameters)
+
+        # Resample
+        resampleParameters = {
+            'inputVolume': inputVolumeNode.GetID(),
+            'outputVolume': patchVolume.GetID(),
+            'referenceVolume': patchVolume.GetID(),
+            'interpolationType': 'ws',
+            'windowFunction': 'l'
+        }
+        cliNode = slicer.cli.runSync(
+            slicer.modules.resamplescalarvectordwivolume, None, resampleParameters
+        )
+        slicer.mrmlScene.RemoveNode(cliNode)
+
+        # Preprocess Resample Volume
+        import SimpleITK as sitk
+        import sitkUtils as su
+
+        histogramFilter = sitk.AdaptiveHistogramEqualizationImageFilter()
+        histogramFilter.SetAlpha(HIST_ALPHA)
+        histogramFilter.SetBeta(HIST_BETA)
+        histogramFilter.SetRadius(HIST_RADIUS)
+
+        sitkImage = su.PullVolumeFromSlicer(patchVolume)
+        sitkImage = histogramFilter.Execute(sitkImage)
+        su.PushVolumeToSlicer(sitkImage, patchVolume)
+
+        return patchVolume
 
     def process(
         self,
@@ -519,7 +584,15 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         #
         # Segmentation
         #
-        patchVolumeNode = self.createPatchROI()
+
+        # Create patch volume
+
+        patchROINode = self.createPatchROI(costVolumeNode, guideLineNode)
+        patchVolumeNode = self.createPatchVolume(inputVolumeNode, patchROINode)
+
+        # Create vesselness volume
+
+        slicer.mrmlScene.RemoveNode(patchROINode)
 
         return
 
