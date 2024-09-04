@@ -492,8 +492,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         import sitkUtils as su
 
         histogramFilter = sitk.AdaptiveHistogramEqualizationImageFilter()
-        # histogramFilter.SetAlpha(0.3)
-        histogramFilter.SetAlpha(0.6)
+        # 0.3 provide faster guideline creation than 0.5
+        histogramFilter.SetAlpha(0.3)
         histogramFilter.SetBeta(0.3)
         histogramFilter.SetRadius([3,3,3])
 
