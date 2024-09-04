@@ -457,7 +457,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
-        self.doCrop(inputVolume, heartRoi, costVolume, scaling=0.52)
+        self.doCrop(inputVolume, heartRoi, costVolume, scaling=0.6)
 
         # window sinc cropping
         # TODO test with sinc
