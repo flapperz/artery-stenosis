@@ -15,6 +15,7 @@ from slicer import (
     vtkMRMLMarkupsCurveNode,
     vtkMRMLMarkupsFiducialNode,
     vtkMRMLMarkupsNode,
+    vtkMRMLMarkupsROINode,
     vtkMRMLScalarVolumeNode,
     vtkMRMLSegmentationNode,
 )
@@ -421,6 +422,81 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         isSingleton = True
     ) -> vtkMRMLCommandLineModuleNode:
         return self.createGuideLineController.runCreateGuideLineAsync(costVolume, markers, guideLine, isSingleton)
+
+    def createPatchROI(self):
+        costVolumeNode = self.getParameterNode().costVolume
+
+        # recreate heartROI
+        heartROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode')
+        cropVolumeParameters = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLCropVolumeParametersNode'
+        )
+        cropVolumeParameters.SetInputVolumeNodeID(costVolumeNode.GetID())
+        cropVolumeParameters.SetROINodeID(heartROINode.GetID())
+        slicer.modules.cropvolume.logic().FitROIToInputVolume(cropVolumeParameters)
+
+        guideLineNode = self.getParameterNode().guideLine
+
+        controlPoints = np.array(
+            [
+                guideLineNode.GetNthControlPointPosition(i)
+                for i in range(guideLineNode.GetNumberOfControlPoints())
+            ]
+        )
+
+        # Compute bounding box of guideLine
+        minBounds = np.min(controlPoints, axis=0)
+        maxBounds = np.max(controlPoints, axis=0)
+
+        # Expand the bounding box by 1 cm (10 mm)
+        PATCH_EXPAND_MM = 10.0  # in mm
+        minBounds -= PATCH_EXPAND_MM
+        maxBounds += PATCH_EXPAND_MM
+
+        # Create a new ROI encompassing the expanded bounding box
+        patchROINode = slicer.mrmlScene.AddNewNodeByClass(
+            'vtkMRMLMarkupsROINode', 'patchROI'
+        )
+        patchROINode.SetXYZ(minBounds + (maxBounds - minBounds) / 2.0)
+        patchROINode.SetRadiusXYZ((maxBounds - minBounds) / 2.0)
+        minBounds = np.min(controlPoints, axis=0)
+        maxBounds = np.max(controlPoints, axis=0)
+
+        # Get heartROI center and radius
+        heartCenter = [0.0, 0.0, 0.0]
+        heartRadius = [0.0, 0.0, 0.0]
+        heartROINode.GetXYZ(heartCenter)
+        heartROINode.GetRadiusXYZ(heartRadius)
+
+        # Get patchROI center and radius
+        patchCenter = [0.0, 0.0, 0.0]
+        patchRadius = [0.0, 0.0, 0.0]
+        patchROINode.GetXYZ(patchCenter)
+        patchROINode.GetRadiusXYZ(patchRadius)
+
+        heartCenter = np.array(heartCenter)
+        heartRadius = np.array(heartRadius)
+        patchCenter = np.array(patchCenter)
+        patchRadius = np.array(patchRadius)
+
+        intersectMinBounds = np.maximum(
+            heartCenter - heartRadius, patchCenter - patchRadius
+        )
+        intersectMaxBounds = np.minimum(
+            heartCenter + heartRadius, patchCenter + patchRadius
+        )
+
+        # If there is an intersection
+        if np.all(intersectMinBounds <= intersectMaxBounds):
+            intersectCenter = (intersectMinBounds + intersectMaxBounds) / 2.0
+            intersectRadius = (intersectMaxBounds - intersectMinBounds) / 2.0
+            patchROINode.SetXYZ(intersectCenter)
+            patchROINode.SetRadiusXYZ(intersectRadius)
+        else:
+            e = "patchROI is not within heartROI bound"
+            return Exception(e)
+
+        return patchROINode
 
     def process(
         self,
