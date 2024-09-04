@@ -596,6 +596,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         }
         grindPeakCliNode = slicer.cli.createNode(grindPeakModule, grindPeakParameter)
         slicer.cli.runSync(grindPeakModule, grindPeakCliNode)
+        slicer.mrmlScene.RemoveNode(grindPeakCliNode)
         bufferArray = slicer.util.arrayFromVolume(costVolume)
         # peak diff
         bufferArray = sourceArray - bufferArray
