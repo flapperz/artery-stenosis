@@ -440,6 +440,32 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         slicer.modules.cropvolume.logic().Apply(cropVolumeParameters)
         slicer.mrmlScene.RemoveNode(cropVolumeParameters)
 
+    def copyVolume(self, inputVolume: vtkMRMLScalarVolumeNode, outputVolume: vtkMRMLScalarVolumeNode, name: str) -> vtkMRMLScalarVolumeNode:
+
+        if outputVolume is None:
+            outputVolume = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', name)
+
+        imageDimensions = inputVolume.GetImageData().GetDimensions()
+        voxelType = vtk.VTK_DOUBLE
+        # voxelType = inputVolume.GetImageData().GetScalarType() # dicom is vtk.VTK_INT
+        imageOrigin = inputVolume.GetImageData().GetOrigin()
+        imageSpacing = inputVolume.GetImageData().GetSpacing()
+        fillVoxelValue = 0
+        volumeToRAS = inputVolume.GetImageData().GetDirectionMatrix()
+        imageDirections = slicer.util.arrayFromVTKMatrix(volumeToRAS)
+
+        imageData = vtk.vtkImageData()
+        imageData.SetDimensions(imageDimensions)
+        imageData.AllocateScalars(voxelType, 1)
+        imageData.GetPointData().GetScalars().Fill(fillVoxelValue)
+
+        outputVolume.SetOrigin(imageOrigin)
+        outputVolume.SetSpacing(imageSpacing)
+        outputVolume.SetIJKToRASDirections(imageDirections)
+        outputVolume.SetAndObserveImageData(imageData)
+        outputVolume.CreateDefaultDisplayNodes()
+        outputVolume.CreateDefaultStorageNode()
+
     def process(
         self,
         inputVolume: vtkMRMLScalarVolumeNode,
