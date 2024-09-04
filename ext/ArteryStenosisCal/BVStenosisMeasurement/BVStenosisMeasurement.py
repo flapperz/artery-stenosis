@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 
 import BVStenosisMeasurementLib.Controllers as Controllers
 import numpy as np
+import qt
 import slicer
 import slicer.util
 import vtk
@@ -348,12 +349,14 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
                 return
 
+            qt.QApplication.setOverrideCursor(qt.Qt.waitCursor)
             self.logic.process(
                 self._parameterNode.inputVolume,
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode.guideLine,
             )
+            qt.QApplication.restoreOverrideCursor()
 
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
         if self._parameterNode and self._parameterNode.inputVolume:
