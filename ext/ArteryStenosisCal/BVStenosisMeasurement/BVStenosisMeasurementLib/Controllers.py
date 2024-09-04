@@ -129,7 +129,9 @@ class VesselnessFilteringController:
         lowerThreshold=0.1,
         isCalculateParameter=False,
     ):
-        logic = slicer.modules.vesselnessfiltering.widgetRepresentation().self().logic
+        from VesselnessFiltering import VesselnessFilteringLogic
+
+        logic = VesselnessFilteringLogic()
 
         outputVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         outputVolumeNode.CreateDefaultDisplayNodes()
