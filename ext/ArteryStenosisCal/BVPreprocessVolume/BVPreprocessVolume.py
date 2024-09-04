@@ -483,7 +483,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
 
         heartRoi.GetDisplayNode().SetFillVisibility(False)
 
-        self.doCrop(inputVolume, heartRoi, costVolume, scaling=0.6)
+        # 0.6
+        self.doCrop(inputVolume, heartRoi, costVolume, scaling=0.7)
 
         # window sinc cropping
         # TODO test with sinc
@@ -492,7 +493,8 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         import sitkUtils as su
 
         histogramFilter = sitk.AdaptiveHistogramEqualizationImageFilter()
-        # 0.3 provide faster guideline creation than 0.5
+        # 0.3 may provide faster guideline creation than 0.5
+        # maybe we need lancoz here
         histogramFilter.SetAlpha(0.3)
         histogramFilter.SetBeta(0.3)
         histogramFilter.SetRadius([3,3,3])
@@ -504,7 +506,7 @@ class BVPreprocessVolumeLogic(ScriptedLoadableModuleLogic):
         sourceArray = slicer.util.arrayFromVolume(costVolume).copy()
         sourceArray[sourceArray < -1000] = -1000
         sourceArray += 1000
-        sourceArray[sourceArray < 450] = 100
+        sourceArray[sourceArray < 500] = 100
         slicer.util.updateVolumeFromArray(costVolume, sourceArray)
 
         #
