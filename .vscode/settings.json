@@ -1,5 +1,9 @@
 {
     "python.defaultInterpreterPath": "/opt/sr561/python-install/bin/PythonSlicer",
+    "python.analysis.include": [
+        "/Users/flap/Source/SlicerExtension-VMTK/LevelSetSegmentation",
+        "/Users/flap/Source/SlicerExtension-VMTK/VesselnessFiltering",
+    ],
     "python.analysis.extraPaths": [
         "/Users/flap/Source/SlicerExtension-VMTK/LevelSetSegmentation",
         "/Users/flap/Source/SlicerExtension-VMTK/VesselnessFiltering",
