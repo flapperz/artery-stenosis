@@ -4,6 +4,7 @@ import numpy as np
 import slicer
 import slicer.util
 import vtk
+from LevelSetSegmentation import LevelSetSegmentationLogic, LevelSetSegmentationWidget
 from slicer import (
     vtkMRMLCommandLineModuleNode,
 )
@@ -183,3 +184,92 @@ class VesselnessFilteringController:
         )
 
         return outputVolumeNode
+
+class LevelSetSegmentationController:
+    methodCollidingFronts = 'collidingfronts'
+    methodFastMarching = 'fastmarching'
+    levelSetsTypeGeodesic = 'geodesic'
+    levelSetsTypeCurves = 'curves'
+
+    def __init__(self, volumeNode, vesselnessNode):
+
+        self.logic = LevelSetSegmentationLogic()
+
+        self.volumeNode = volumeNode
+        self.inputImage = vtk.vtkImageData()
+        self.inputImage.DeepCopy(vesselnessNode.GetImageData())
+        self.labelMapData = None
+
+    def performEvolution(
+        self,
+        seedsNode,
+        stoppersNode=None,
+        minVesselnessThreshold=0.1,
+        iteration=10,
+        inflation=0,
+        curvature=70,
+        attraction=50,
+        method='fastmarching',
+        levelSetsType='geodesic'
+    ):
+        seeds = LevelSetSegmentationWidget.convertFiducialHierarchyToVtkIdList(
+            seedsNode, self.volumeNode
+        )
+
+        if stoppersNode:
+            stoppers = LevelSetSegmentationWidget.convertFiducialHierarchyToVtkIdList(
+                stoppersNode, self.volumeNode
+            )
+        else:
+            stoppers = vtk.vtkIdList()
+
+        # initialization
+        initImageData = vtk.vtkImageData()
+        initImageData.DeepCopy(
+            self.logic.performInitialization(
+                self.inputImage,
+                minVesselnessThreshold,
+                1.00,
+                seeds,
+                stoppers,
+                method,
+            )
+        )
+
+        # evolution
+        evolImageData = vtk.vtkImageData()
+        evolImageData.DeepCopy(
+            self.logic.performEvolution(
+                self.volumeNode.GetImageData(),
+                initImageData,
+                iteration,
+                inflation,
+                curvature,
+                attraction,
+                levelSetsType,
+            )
+        )
+
+        if not self.labelMapData:
+            self.labelMapData = vtk.vtkImageData()
+            self.labelMapData.DeepCopy(self.logic.buildSimpleLabelMap(evolImageData, 5, 0))
+        else:
+            newLabelMapData = vtk.vtkImageData()
+            newLabelMapData.DeepCopy(self.logic.buildSimpleLabelMap(evolImageData, 5, 0))
+            self.updateCurrentLabelMapData(newLabelMapData)
+
+    def updateCurrentLabelMapData(self, newLabelMapData):
+        imageMath = vtk.vtkImageMathematics()
+        imageMath.SetOperationToMax()  # Max operation will work like logical OR for binary images
+        imageMath.SetInput1Data(self.labelMapData)
+        imageMath.SetInput2Data(newLabelMapData)
+        imageMath.Update()
+
+        self.labelMapData.DeepCopy(imageMath.GetOutput())
+
+    def createResultLabelMapNode(self):
+        labelMapNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode')
+        labelMapNode.CopyOrientation(self.volumeNode)
+        labelMapNode.SetAndObserveImageData(self.labelMapData)
+        labelMapNode.CreateDefaultDisplayNodes()
+        return labelMapNode

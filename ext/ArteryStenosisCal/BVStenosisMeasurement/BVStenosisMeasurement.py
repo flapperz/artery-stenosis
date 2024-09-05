@@ -559,6 +559,18 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         return patchVolume
 
+    @staticmethod
+    def getIJKFromRAS(referenceVolume, rasArray):
+        """
+        :param rasArray: Nx3 numpy array
+        """
+        x = vtk.vtkMatrix4x4()
+        referenceVolume.GetRASToIJKMatrix(x)
+        ras2ijkMat = slicer.util.arrayFromVTKMatrix(x)
+        rasHomo = np.ones((rasArray.shape[0], 4), dtype=np.double)
+        rasHomo[:, :3] = rasArray
+        return (np.round(ras2ijkMat @ rasHomo.T).astype(np.uint16).T)[:, :3]
+
     def process(
         self,
         inputVolumeNode: vtkMRMLScalarVolumeNode,
@@ -630,43 +642,72 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         vesselnessVolumeNode.SetName("BV_Vesselness")
         timer.stop()
 
-        slicer.mrmlScene.RemoveNode(patchROINode)
-        slicer.mrmlScene.RemoveNode(guideSeedNode)
+        # Create Segmentation Labelmap
+        SEG_VESSELNESS_MIN = 0.05
+
+        timer.start('Segmentation')
+        segController = Controllers.LevelSetSegmentationController(
+            patchVolumeNode, vesselnessVolumeNode
+        )
+
+
+        # generate guideLine piece
+        # piece is coninuous chunk of guideLine which all have vesselness value morethan threshold
+        # TODO: move end of piece to furthest position
+
+        piecesIndices = []
+        isPieceClose = True
+        guideSeedIJK = self.getIJKFromRAS(patchVolumeNode, guideSeedControlPoints)
+        vesselnessArray = slicer.util.arrayFromVolume(vesselnessVolumeNode)
+
+        for i in range(len(guideSeedControlPoints)):
+            seedI, seedJ, seedK = guideSeedIJK[i, :].tolist()
+            vesselnessValue = vesselnessArray[seedK,seedJ,seedI]
+            if isPieceClose:
+                if vesselnessValue > SEG_VESSELNESS_MIN:
+                    isPieceClose = False
+                    piecesIndices.append([i])
+            else:
+                if vesselnessValue > SEG_VESSELNESS_MIN:
+                    piecesIndices[-1].append(i)
+                else:
+                    isPieceClose = True
+        logging.debug(f'{piecesIndices=}')
+        print(f'number of pieces: {len(piecesIndices)}')
+
+        tmpSeedsNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
+        tmpStoppersNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
+
+        # do segment on each piece
+        for pieceIndices in piecesIndices:
+            startSeedIndex = pieceIndices[0]
+            stopSeedIndex = pieceIndices[-1]
+            slicer.util.updateMarkupsControlPointsFromArray(
+                tmpSeedsNode, guideSeedControlPoints[(startSeedIndex, stopSeedIndex), :]
+            )
+            slicer.util.updateMarkupsControlPointsFromArray(
+                tmpStoppersNode, guideSeedControlPoints[(stopSeedIndex,), :]
+            )
+
+            segController.performEvolution(
+                tmpSeedsNode,
+                tmpStoppersNode,
+                minVesselnessThreshold=SEG_VESSELNESS_MIN,
+                iteration=15,
+                inflation=0,
+                curvature=70,
+                attraction=50,
+                method=segController.methodCollidingFronts,
+                levelSetsType=segController.levelSetsTypeCurves,
+            )
+
+        slicer.mrmlScene.RemoveNode(tmpSeedsNode)
+        slicer.mrmlScene.RemoveNode(tmpStoppersNode)
+
+        labelmapNode = segController.createResultLabelMapNode()
+        timer.stop()
 
         return
-
-        slicer.util.setSliceViewerLayers(background=costVolumeNode)
-        slicer.app.processEvents()
-        mainWindow.moduleSelector().selectModule('GuidedArterySegmentation')
-
-        vmtkSegWidget = (
-            slicer.modules.guidedarterysegmentation.widgetRepresentation().self()
-        )
-        vmtkSegLogic = vmtkSegWidget.logic
-
-        # TODO: not hard code slice node
-        sliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
-
-        # must be call before curve selector
-        vmtkSegWidget.ui.inputSliceNodeSelector.setCurrentNode(sliceNode)
-        vmtkSegWidget.ui.inputCurveSelector.setCurrentNode(guideLineNode)
-        vmtkSegWidget._parameterNode.inputIndensityTolerance = 100
-        # in mm.
-        vmtkSegWidget._parameterNode.neighbourhoodSize = 1.4
-        vmtkSegWidget._parameterNode.tubeDiameter = 2.0
-        vmtkSegWidget._parameterNode.extractCenterlines = False
-
-        vmtkSegWidget.ui.applyButton.click()
-
-        # set slice background back
-        slicer.util.setSliceViewerLayers(background=inputVolumeNode)
-        slicer.app.processEvents()
-
-        segmentationNode = vmtkSegWidget._parameterNode.outputSegmentation
-        segmentation = segmentationNode.GetSegmentation()
-        # segmentation.GetNumberOfSegments()
-        # segmentation.GetNthSegment(0)
-        segmentID = segmentation.GetSegmentIDs()[0]
 
         #
         # --- Extract Centerline
