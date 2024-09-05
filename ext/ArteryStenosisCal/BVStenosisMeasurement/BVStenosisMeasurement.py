@@ -349,14 +349,17 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 slicer.util.errorDisplay('Failed to start stenosis procedure: ' + str(e))
                 return
 
-            qt.QApplication.setOverrideCursor(qt.Qt.waitCursor)
+            if not self._parameterNode.segmentation:
+                self._parameterNode.segmentation = slicer.mrmlScene.AddNewNodeByClass(
+                    'vtkMRMLSegmentationNode'
+                )
+
             self.logic.process(
                 self._parameterNode.inputVolume,
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode.guideLine,
             )
-            qt.QApplication.restoreOverrideCursor()
 
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
         if self._parameterNode and self._parameterNode.inputVolume:
