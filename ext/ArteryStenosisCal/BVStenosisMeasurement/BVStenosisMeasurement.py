@@ -359,6 +359,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode.guideLine,
+                self._parameterNode.segmentation
             )
 
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
@@ -580,6 +581,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         costVolumeNode: vtkMRMLScalarVolumeNode,
         markersNode: vtkMRMLMarkupsFiducialNode,
         guideLineNode: vtkMRMLMarkupsCurveNode,
+        segmentationNode: vtkMRMLSegmentationNode
     ) -> None:
         """
         Run the processing algorithm.
@@ -707,14 +709,47 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.mrmlScene.RemoveNode(tmpSeedsNode)
         slicer.mrmlScene.RemoveNode(tmpStoppersNode)
 
-        labelmapNode = segController.createResultLabelMapNode()
+        labelMapNode = segController.createResultLabelMapNode()
         timer.stop()
 
-        return
+        timer.start('Pad segmentation')
+        # Create padding with kernel 3x3x3
+        # TODO: optimize with numpy
+        labelMapArray = slicer.util.arrayFromVolume(labelMapNode)
+        paddingValue = 128
+        for pointIdx in range(len(guideSeedIJK)):
+            i,j,k = guideSeedIJK[pointIdx, :].tolist()
+            for oi in (-1,0,1):
+                for oj in (-1,0,1):
+                    for ok in (-1,0,1):
+                        ii = i + oi
+                        jj = j + oj
+                        kk = k + ok
+                        if labelMapArray[kk, jj, ii] == 0:
+                            labelMapArray[kk, jj, ii] = paddingValue
+
+        markersName = markersNode.GetName()
+        vesselSegmentID = f'{markersName}_vessel'
+        paddingSegmentID = f'{markersName}_padding'
+        # segmentIDs = vtk.vtkStringArray()
+        # segmentIDs.InsertNextValue(vesselSegmentID)
+        # segmentIDs.InsertNextValue(paddingSegmentID)
+
+        # Convert label map to segmentation
+        slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
+            labelMapNode, segmentationNode
+        )
+        vesselSegmentID, paddingSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()
+
+
+        timer.stop()
+
+        # TODO: change segmentID and set name (segID != name)
 
         #
         # --- Extract Centerline
         #
+        timer.start('Extract Centerline')
 
         mainWindow.moduleSelector().selectModule('ExtractCenterline')
 
@@ -722,7 +757,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         ecLogic = ecWidget.logic
 
         ecWidget.ui.inputSurfaceSelector.setCurrentNode(segmentationNode)
-        ecWidget.ui.inputSegmentSelectorWidget.setCurrentSegmentID(segmentID)
+        ecWidget.ui.inputSegmentSelectorWidget.setCurrentSegmentID(vesselSegmentID)
+        slicer.app.processEvents()
 
         # # Copy node
         # guideLineShID = shNode.GetItemByDataNode(guideLine)
@@ -735,26 +771,47 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # endPointsNode.SetName('Endpoints_' + markers.GetName())
 
         # TODO maybe we can use logic directly here
-        endPointsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-        endPointsNode.SetName('Endpoints_' + markersNode.GetName())
-        slicer.util.updateMarkupsControlPointsFromArray(endPointsNode, slicer.util.arrayFromMarkupsControlPoints(guideLineNode))
 
-        slicer.app.processEvents()
-        ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
+        alternatePiecesIndices = []
+        endPointsNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
+        endPointsNode.SetName('BV_EndPoints')
 
-        centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        centerlineModelNode.SetName('Centerline_model_' + markersNode.GetName())
-        ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
+        for i, pieceIndices in enumerate(piecesIndices):
+            startPoint = guideSeedControlPoints[pieceIndices[0]]
+            stopPoint = guideSeedControlPoints[pieceIndices[-1]]
+            endPointsNode.RemoveAllControlPoints()
+            endPointsNode.AddControlPoint(startPoint[0], startPoint[1], startPoint[2])
+            endPointsNode.AddControlPoint(stopPoint[0], stopPoint[1], stopPoint[2])
+            ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
 
-        centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
-            'vtkMRMLMarkupsCurveNode'
+            centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+            centerlineModelNode.SetName(f'Centerline_model_{i}')
+            ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
+
+            centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
+                'vtkMRMLMarkupsCurveNode'
+            )
+            centerlineCurveNode.SetName(f'Centerline_curve_{i}')
+            ecWidget.ui.outputCenterlineCurveSelector.setCurrentNode(centerlineCurveNode)
+            # None Type Object have no attribute getvalue
+            ecWidget.onAutoDetectEndPoints()
+            slicer.app.processEvents()
+            print(pieceIndices)
+
+            ecWidget.onApplyButton()
+        timer.stop()
+
+        #
+        # Clean up
+        #
+
+        slicer.mrmlScene.RemoveNode(patchROINode)
+        slicer.mrmlScene.RemoveNode(guideSeedNode)
+        slicer.util.setSliceViewerLayers(
+            background=inputVolumeNode,
+            foreground=vesselnessVolumeNode,
+            label=labelMapNode,
         )
-        centerlineCurveNode.SetName('Centerline_curve_' + markersNode.GetName())
-        ecWidget.ui.outputCenterlineCurveSelector.setCurrentNode(centerlineCurveNode)
-        ecWidget.onAutoDetectEndPoints()
-
-        ecWidget.onApplyButton()
-
         return
 
         #
@@ -901,10 +958,20 @@ class BVStenosisMeasurementTest(ScriptedLoadableModuleTest):
         costVolumeNode = slicer.util.getNode('BV_COSTVOLUME')
 
         ladGLNode = slicer.util.getNode('GL_LAD')
-        markers = slicer.util.getNode('SEED_SPARSE_LAD')
+        lcxGLNode = slicer.util.getNode('GL_LCX')
+        rcaGLNode = slicer.util.getNode('GL_RCA')
+        # markers = slicer.util.getNode('SEED_SPARSE_RCA')
+        markers = slicer.util.getNode('SEED_SPARSE_LCX')
 
-        logic = BVStenosisMeasurementLogic()
-        logic.process(inputVolumeNode, costVolumeNode, markers, ladGLNode)
+        widget = slicer.modules.bvstenosismeasurement.widgetRepresentation().self()
+        widget.ui.inputVolumeSelector.setCurrentNode(inputVolumeNode)
+        widget.ui.costVolumeSelector.setCurrentNode(costVolumeNode)
+        widget.ui.guideLineSelector.setCurrentNode(lcxGLNode)
+        widget.ui.markersSelector.setCurrentNode(markers)
+
+        widget.onApplyButtonClicked()
+
+
 
     def test_GuideLines(self):
         import time
