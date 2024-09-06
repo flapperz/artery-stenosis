@@ -710,13 +710,20 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.mrmlScene.RemoveNode(tmpStoppersNode)
 
         labelMapNode = segController.createResultLabelMapNode()
+        # output label map from levelset is float, we need discrete type
+        slicer.cli.runSync(slicer.modules.castscalarvolume, None, {
+            'InputVolume': labelMapNode.GetID(),
+            'OutputVolume': labelMapNode.GetID(),
+            'Type': 'Short'
+        })
+
         timer.stop()
 
         timer.start('Pad segmentation')
         # Create padding with kernel 3x3x3
-        # TODO: optimize with numpy
+        # TODO: optimize with numpy and guard edge
         labelMapArray = slicer.util.arrayFromVolume(labelMapNode)
-        paddingValue = 128
+        paddingValue = 8
         for pointIdx in range(len(guideSeedIJK)):
             i,j,k = guideSeedIJK[pointIdx, :].tolist()
             for oi in (-1,0,1):
