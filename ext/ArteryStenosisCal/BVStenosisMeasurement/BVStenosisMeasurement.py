@@ -563,6 +563,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         return patchVolume
 
+    def createPiecesIndices(self):
+        return
+
     @staticmethod
     def getIJKFromRAS(referenceVolume, rasArray):
         """
@@ -717,50 +720,44 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             'Type': 'Short'
         })
 
-        markersName = markersNode.GetName()
-        vesselSegmentID = f'{markersName}_vessel'
-        paddingSegmentID = f'{markersName}_padding'
-
-        segmentIDs = vtk.vtkStringArray()
-        segmentIDs.SetNumberOfValues(5)
-        segmentIDs.SetValue(4, f"{markersName}_vessel")
-        # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
-        #     labelMapNode, segmentationNode, segmentIDs
-        # )
-        # vesselSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[-1]
-
-        timer.stop()
-
-        timer.start('Pad segmentation')
-
-        # Create padding with kernel 3x3x3
-        # TODO: optimize with numpy and guard edge
-        labelMapArray = slicer.util.arrayFromVolume(labelMapNode)
-        paddingValue = 5
-        for pointIdx in range(len(guideSeedIJK)):
-            i,j,k = guideSeedIJK[pointIdx, :].tolist()
-            for oi in (-1,0,1):
-                for oj in (-1,0,1):
-                    for ok in (-1,0,1):
-                        ii = i + oi
-                        jj = j + oj
-                        kk = k + ok
-                        if labelMapArray[kk, jj, ii] == 0:
-                            labelMapArray[kk, jj, ii] = paddingValue
-        slicer.util.arrayFromVolumeModified(labelMapNode)
-
-
         # Convert label map to segmentation
-        segmentIDs = vtk.vtkStringArray()
-        segmentIDs.SetNumberOfValues(5)
-        segmentIDs.SetValue(4, f"{markersName}_padding")
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
             labelMapNode, segmentationNode
         )
-        paddingSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[-1]
-
+        vesselSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[-1]
 
         timer.stop()
+
+        # do padding on fragmented blood vessel
+        # enum reference
+        # https://github.com/SlicerIGT/SlicerMarkupsToModel/blob/master/MarkupsToModel/MRML/vtkMRMLMarkupsToModelNode.h
+        timer.start('Pad segmentation')
+        paddingCoreModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        slicer.modules.markupstomodel.logic().UpdateOutputCurveModel(
+            guideLineNode,
+            paddingCoreModelNode,
+            0,  # Linear, CardinalSpline, KochanekSpline, Polynomial
+            False,  # tube loop
+            0.25,  # tube Radius
+            8,  # tubeNumber of sides
+            1,  # tube segment between control point
+            True,  # clean markups ?
+            3,  # polynomial order
+            0,  # point parameter type
+            None,
+            1,  # global least square, moving least square
+            0.5,  # sample width
+            0,  # weight: Rectangular = 0, Triangular, Cosine, Gaussian,
+            True,
+        )
+        slicer.modules.segmentations.logic().ImportModelToSegmentationNode(
+            paddingCoreModelNode, segmentationNode, vesselSegmentID
+        )
+        paddingCoreSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[0]
+
+        timer.stop()
+
+        return
 
 
         #
