@@ -112,3 +112,14 @@ structure[1,:,1] = 1
 structure[1,1,:] = 1
 binsdf[:] = source > 41
 binsdf[:] = scipy.ndimage.binary_dilation(binsdf, structure, 4)
+
+
+# # Copy node
+# guideLineShID = shNode.GetItemByDataNode(guideLine)
+# endPointsShID = (
+#     slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(
+#         shNode, guideLineShID
+#     )
+# )
+# endPointsNode = shNode.GetItemDataNode(endPointsShID)
+# endPointsNode.SetName('Endpoints_' + markers.GetName())
