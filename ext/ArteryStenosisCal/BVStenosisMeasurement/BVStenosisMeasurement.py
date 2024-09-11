@@ -720,6 +720,19 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             'Type': 'Short'
         })
 
+        # Specify geometry, should effect labelmap representation
+        segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(patchVolumeNode)
+
+        # Initialize segmentation tools
+        segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
+        segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
+        segmentEditorNode = slicer.vtkMRMLSegmentEditorNode()
+        slicer.mrmlScene.AddNode(segmentEditorNode)
+        segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
+        segmentEditorWidget.setSegmentationNode(segmentationNode)
+        # This should effect only intensity query
+        segmentEditorWidget.setSourceVolumeNode(inputVolumeNode)
+
         # Convert label map to segmentation
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
             labelMapNode, segmentationNode
@@ -732,13 +745,14 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # enum reference
         # https://github.com/SlicerIGT/SlicerMarkupsToModel/blob/master/MarkupsToModel/MRML/vtkMRMLMarkupsToModelNode.h
         timer.start('Pad segmentation')
+
         paddingCoreModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
         slicer.modules.markupstomodel.logic().UpdateOutputCurveModel(
             guideLineNode,
             paddingCoreModelNode,
             0,  # Linear, CardinalSpline, KochanekSpline, Polynomial
             False,  # tube loop
-            0.25,  # tube Radius
+            0.5,  # tube Radius
             8,  # tubeNumber of sides
             1,  # tube segment between control point
             True,  # clean markups ?
@@ -754,11 +768,34 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             paddingCoreModelNode, segmentationNode, vesselSegmentID
         )
         paddingCoreSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[0]
+        # TODO: bring back when finish
+        # slicer.mrmlScene.RemoveNode(paddingCoreModelNode)
+
+        paddedSegmentID = segmentationNode.GetSegmentation().AddEmptySegment()
+
+        segmentEditorNode.SetSelectedSegmentID(paddedSegmentID)
+        segmentEditorNode.SetOverwriteMode(2) # Allow overlap
+        segmentEditorWidget.setActiveEffectByName('Logical operators')
+        effect = segmentEditorWidget.activeEffect()
+        # copy core of guideline model
+        effect.setParameter('Operation', 'COPY')
+        effect.setParameter('ModifierSegmentID', paddingCoreSegmentID)
+        effect.self().onApply()
+        # add vessel pieces segmentation to core
+        effect.setParameter('Operation', 'UNION')
+        effect.setParameter('ModifierSegmentID', vesselSegmentID)
+        effect.self().onApply()
+        # Remove (small) islands
+        segmentEditorWidget.setActiveEffectByName('Islands')
+        effect = segmentEditorWidget.activeEffect()
+        effect.setParameter('Operation', 'KEEP_LARGEST_ISLAND')
+        effect.self().onApply()
+
+        # no use anymore
+        # TODO: bring back when finish
+        # segmentationNode.RemoveSegment(paddingCoreSegmentID)
 
         timer.stop()
-
-        return
-
 
         #
         # --- Extract Centerline
@@ -772,19 +809,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # ecLogic = ecWidget.logic
 
         ecWidget.ui.inputSurfaceSelector.setCurrentNode(segmentationNode)
-        ecWidget.ui.inputSegmentSelectorWidget.setCurrentSegmentID(paddingSegmentID)
-
-        # # Copy node
-        # guideLineShID = shNode.GetItemByDataNode(guideLine)
-        # endPointsShID = (
-        #     slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(
-        #         shNode, guideLineShID
-        #     )
-        # )
-        # endPointsNode = shNode.GetItemDataNode(endPointsShID)
-        # endPointsNode.SetName('Endpoints_' + markers.GetName())
-
-        # TODO maybe we can use logic directly here
+        ecWidget.ui.inputSegmentSelectorWidget.setCurrentSegmentID(paddedSegmentID)
 
         endPointsNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
         endPointsNode.SetName('BV_EndPoints')
@@ -819,11 +844,16 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         slicer.mrmlScene.RemoveNode(patchROINode)
         slicer.mrmlScene.RemoveNode(guideSeedNode)
+        slicer.mrmlScene.RemoveNode(segmentEditorNode)
+        del segmentEditorWidget
+        # TODO: bring back when finish
+        # segmentationNode.RemoveSegment(paddedSegmentID)
         slicer.util.setSliceViewerLayers(
             background=inputVolumeNode,
             foreground=vesselnessVolumeNode,
             label=labelMapNode,
         )
+
         return
 
         #
