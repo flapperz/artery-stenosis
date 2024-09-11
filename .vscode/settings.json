@@ -9,6 +9,8 @@
         "/Users/flap/Source/SlicerExtension-VMTK/VesselnessFiltering",
     ],
     
+    "python.languageServer": "Pylance",
+    
     "cmake.sourceDirectory": "/Users/flap/Source/artery-stenosis/ext/ArteryStenosisCal",
     "cmake.allowCommentsInPresetsFile": true,
      
