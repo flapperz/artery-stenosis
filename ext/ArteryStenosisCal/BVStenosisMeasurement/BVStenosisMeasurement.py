@@ -169,6 +169,7 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         """Called each time the user opens this module."""
         # Make sure parameter node exists and observed
         self.initializeParameterNode()
+        self.resetReformatView()
 
     def exit(self) -> None:
         """Called each time the user opens a different module."""
@@ -192,6 +193,12 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
         # If this module is shown while the scene is closed then recreate a new parameter node immediately
         if self.parent.isEntered:
             self.initializeParameterNode()
+
+    def resetReformatView(self) -> None:
+        redSliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
+        redSliceNode.SetOrientationToDefault()
+        greenSliceNode = slicer.app.layoutManager().sliceWidget('Green').mrmlSliceNode()
+        greenSliceNode.SetOrientationToDefault()
 
     def initializeParameterNode(self) -> None:
         """Ensure parameter node exists and observed."""
