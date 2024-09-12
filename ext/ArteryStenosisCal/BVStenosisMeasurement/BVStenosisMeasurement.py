@@ -831,8 +831,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             paddingCoreModelNode, segmentationNode, vesselSegmentID
         )
         paddingCoreSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[0]
-        # TODO: bring back when finish
-        # slicer.mrmlScene.RemoveNode(paddingCoreModelNode)
+        slicer.mrmlScene.RemoveNode(paddingCoreModelNode)
 
         paddedSegmentID = segmentationNode.GetSegmentation().AddEmptySegment()
 
@@ -883,6 +882,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         endPointsNode.AddControlPoint(startPoint[0], startPoint[1], startPoint[2])
         endPointsNode.AddControlPoint(stopPoint[0], stopPoint[1], stopPoint[2])
         ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
+        # ecWidget.ui.curveSamplingDistanceSpinBox.setValue(1.0)
         # centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
         # centerlineModelNode.SetName(f'Centerline_model_{i}')
         # ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
@@ -890,7 +890,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLMarkupsCurveNode'
         )
-        centerlineCurveNode.SetName(f'Centerline_curve_{i}')
+        centerlineCurveNode.SetName(f'{markersName}_Centerline')
         ecWidget.ui.outputCenterlineCurveSelector.setCurrentNode(centerlineCurveNode)
         ecWidget.ui.preprocessInputSurfaceModelCheckBox.setChecked(False)
 
@@ -946,6 +946,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.mrmlScene.RemoveNode(patchROINode)
         slicer.mrmlScene.RemoveNode(guideSeedNode)
         slicer.mrmlScene.RemoveNode(segmentEditorNode)
+        slicer.mrmlScene.RemoveNode(endPointsNode)
         del segmentEditorWidget
         # TODO: bring back when finish
         # segmentationNode.RemoveSegment(paddedSegmentID)
