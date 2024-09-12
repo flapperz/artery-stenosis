@@ -578,6 +578,68 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         rasHomo[:, :3] = rasArray
         return (np.round(ras2ijkMat @ rasHomo.T).astype(np.uint16).T)[:, :3]
 
+    def createStenosisReport(self, tableNode):
+
+        cross_sec_area = slicer.util.arrayFromTableColumn(
+            tableNode, 'Cross-section area'
+        )
+        distances = slicer.util.arrayFromTableColumn(tableNode, 'Distance')
+
+        # Fix constant for now
+        max_distances = distances[-1]
+        if len(distances) < 20 or (len(distances) and max_distances < 6):
+            e = 'Vessel too short'
+            raise Exception(e)
+
+        # trim_length = 2.5
+        # min_trim_index = np.arange(len(distances))[distances > trim_length][0]
+        # max_trim_index = np.arange(len(distances))[
+        #     distances > max_distances - trim_length
+        # ][0]
+        # trim_cross_sec_area = cross_sec_area[min_trim_index:max_trim_index]
+
+        min_area_index = np.argmin(cross_sec_area)
+        min_area = np.min(cross_sec_area)
+        max_area = np.max(cross_sec_area)  # avg( max(proximal), max(distal) )
+        max_1_area = np.max(cross_sec_area[:min_area_index])
+        max_2_area = np.max(cross_sec_area[min_area_index:])
+        normal_reference = (max_1_area + max_2_area) * 0.5
+
+        if max_area and normal_reference:
+            stenosis = 1 - (min_area / max_area)
+            stenosis_f0 = 1 - (min_area / normal_reference)
+
+            stenosis_percent_str = f'{stenosis*100:.3f}'
+            stenosis_f0_percent_str = f'{stenosis_f0*100:.3f}'
+
+            outInfo = 'Result!\n'
+            outInfo += '\n'
+            # outInfo += f'vessel length: {max_distances=:.3f} mm. trim with {trim_length} mm. both side'
+            outInfo += f'vessel length: {max_distances=:.3f} mm.'
+            outInfo += '\n'
+            outInfo += '====== stenosis ======\n'
+            outInfo += '\n'
+            outInfo += f'{min_area=:.3f} (mm^2)\n'
+            outInfo += f'{max_area=:.3f} (mm^2)\n'
+            outInfo += '\n'
+            outInfo += f'stenosis : {stenosis_percent_str}%\n'
+            outInfo += '\n'
+            outInfo += '====== formula 0 ======\n'
+            outInfo += '\n'
+            outInfo += f'{min_area=:.3f} (mm^2)\n'
+            outInfo += f'{max_1_area=:.3f} (mm^2)\n'
+            outInfo += f'{max_2_area=:.3f} (mm^2)\n'
+            outInfo += f'{normal_reference=:.3f} (mm^2)\n'
+            outInfo += '\n'
+            outInfo += f'stenosis : {stenosis_f0_percent_str}%'
+
+            print('===== Report stenosis result =====')
+            print(outInfo)
+            return outInfo
+
+        raise Exception('max_area is 0')
+
+
     def process(
         self,
         inputVolumeNode: vtkMRMLScalarVolumeNode,
@@ -609,6 +671,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # Commonly used node
         mainWindow = slicer.util.mainWindow()
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+        markersName = markersNode.GetName()
 
         #
         # Segmentation
@@ -820,10 +883,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         endPointsNode.AddControlPoint(startPoint[0], startPoint[1], startPoint[2])
         endPointsNode.AddControlPoint(stopPoint[0], stopPoint[1], stopPoint[2])
         ecWidget.ui.endPointsMarkupsSelector.setCurrentNode(endPointsNode)
-
-        centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        centerlineModelNode.SetName(f'Centerline_model_{i}')
-        ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
+        # centerlineModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        # centerlineModelNode.SetName(f'Centerline_model_{i}')
+        # ecWidget.ui.outputCenterlineModelSelector.setCurrentNode(centerlineModelNode)
 
         centerlineCurveNode = slicer.mrmlScene.AddNewNodeByClass(
             'vtkMRMLMarkupsCurveNode'
@@ -838,6 +900,45 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
         ecWidget.onApplyButton()
 
+
+        #
+        # --- Cross Sectional Analysis
+        #
+
+        mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
+        slicer.app.processEvents()
+
+        # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
+        # exportFolderItemId = shNode.CreateFolderItem(
+        #     shNode.GetSceneItemID(), 'Segments_' + guideLineNode.GetID()
+        # )
+        # slicer.modules.segmentations.logic().ExportSegmentsToModels(
+        #     segmentationNode, [segmentID], exportFolderItemId
+        # )
+        # segmentModels = vtk.vtkCollection()
+        # shNode.GetDataNodesInBranch(exportFolderItemId, segmentModels)
+        # Get exported model of first segment
+        # modelNode = segmentModels.GetItemAsObject(0)
+
+        crossSecWidget = (
+            slicer.modules.crosssectionanalysis.widgetRepresentation().self()
+        )
+        crossSecLogic = crossSecWidget.logic
+
+        crossSecWidget.ui.inputCenterlineSelector.setCurrentNode(centerlineCurveNode)
+        # crossSecWidget.ui.segmentationSelector.setCurrentNode(modelNode)
+        crossSecWidget.ui.segmentationSelector.setCurrentNode(segmentationNode)
+        crossSecWidget.onInputSegmentationNode()
+        slicer.app.processEvents()
+        crossSecWidget.ui.segmentSelector.setCurrentSegmentID(vesselSegmentID)
+
+        crossSecWidget.onApplyButton()
+
+        redSliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
+        greenSliceNode = slicer.app.layoutManager().sliceWidget('Green').mrmlSliceNode()
+        crossSecWidget.ui.axialSliceViewSelector.setCurrentNode(redSliceNode)
+        crossSecWidget.ui.longitudinalSliceViewSelector.setCurrentNode(greenSliceNode)
+
         #
         # Clean up
         #
@@ -848,117 +949,19 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         del segmentEditorWidget
         # TODO: bring back when finish
         # segmentationNode.RemoveSegment(paddedSegmentID)
+        # slicer.mrmlScene.RemoveNode(patchVolumeNode)
         slicer.util.setSliceViewerLayers(
             background=inputVolumeNode,
             foreground=vesselnessVolumeNode,
             label=labelMapNode,
         )
 
-        return
-
-        #
-        # --- Cross Sectional Analysis
-        #
-
-        mainWindow.moduleSelector().selectModule('CrossSectionAnalysis')
-        slicer.app.processEvents()
-
-        # TODO: make this reapply able -> check how exportvisiblesegmentstomodel logic work
-        exportFolderItemId = shNode.CreateFolderItem(
-            shNode.GetSceneItemID(), 'Segments_' + guideLineNode.GetID()
-        )
-        slicer.modules.segmentations.logic().ExportSegmentsToModels(
-            segmentationNode, [segmentID], exportFolderItemId
-        )
-        segmentModels = vtk.vtkCollection()
-        shNode.GetDataNodesInBranch(exportFolderItemId, segmentModels)
-        # Get exported model of first segment
-        modelNode = segmentModels.GetItemAsObject(0)
-        # print("fucker", type(modelNode))
-
-        crossSecWidget = (
-            slicer.modules.crosssectionanalysis.widgetRepresentation().self()
-        )
-        crossSecLogic = crossSecWidget.logic
-
-        centerlineNode = vmtkSegWidget._parameterNode.outputCenterlineCurve
-
-        crossSecWidget.ui.inputCenterlineSelector.setCurrentNode(centerlineNode)
-        # crossSecWidget.ui.segmentationSelector.setCurrentNode(modelNode)
-        crossSecWidget.ui.segmentationSelector.setCurrentNode(segmentationNode)
-        crossSecWidget.ui.segmentSelector.setCurrentSegmentID(segmentID)
-
-        crossSecWidget.ui.applyButton.click()
-        slicer.app.processEvents()
-        redSliceNode = slicer.app.layoutManager().sliceWidget('Red').mrmlSliceNode()
-        greenSliceNode = slicer.app.layoutManager().sliceWidget('Green').mrmlSliceNode()
-        crossSecWidget.ui.axialSliceViewSelector.setCurrentNode(redSliceNode)
-        crossSecWidget.ui.longitudinalSliceViewSelector.setCurrentNode(greenSliceNode)
-
         with slicer.util.tryWithErrorDisplay(
             'Failed to compute cross-section area.', waitCursor=True
         ):
             outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
-
-            cross_sec_area = slicer.util.arrayFromTableColumn(
-                outTableNode, 'Cross-section area'
-            )
-            distances = slicer.util.arrayFromTableColumn(outTableNode, 'Distance')
-            print(cross_sec_area.shape)
-            # Fix constant for now
-            max_distances = distances[-1]
-            if len(distances) < 20 or (len(distances) and max_distances < 6):
-                e = 'Vessel too short'
-                slicer.util.errorDisplay('Failed to compute stenosis: ' + str(e))
-                raise IndexError
-            trim_length = 2.5
-            min_trim_index = np.arange(len(distances))[distances > trim_length][0]
-            max_trim_index = np.arange(len(distances))[
-                distances > max_distances - trim_length
-            ][0]
-            trim_cross_sec_area = cross_sec_area[min_trim_index:max_trim_index]
-
-            min_area_index = np.argmin(trim_cross_sec_area)
-            min_area = np.min(trim_cross_sec_area)
-            max_area = np.max(trim_cross_sec_area)  # avg( max(proximal), max(distal) )
-            max_1_area = np.max(trim_cross_sec_area[:min_area_index])
-            max_2_area = np.max(trim_cross_sec_area[min_area_index:])
-            normal_reference = (max_1_area + max_2_area) * 0.5
-
-            if max_area and normal_reference:
-                stenosis = 1 - (min_area / max_area)
-                stenosis_f0 = 1 - (min_area / normal_reference)
-
-                stenosis_percent_str = f'{stenosis*100:.3f}'
-                stenosis_f0_percent_str = f'{stenosis_f0*100:.3f}'
-
-                outInfo = 'Result!\n'
-                outInfo += '\n'
-                outInfo += f'vessel length: {max_distances=:.3f} mm. trim with {trim_length} mm. both side'
-                outInfo += '\n'
-                outInfo += '====== stenosis ======\n'
-                outInfo += '\n'
-                outInfo += f'{min_area=:.3f} (mm^2)\n'
-                outInfo += f'{max_area=:.3f} (mm^2)\n'
-                outInfo += '\n'
-                outInfo += f'stenosis : {stenosis_percent_str}%\n'
-                outInfo += '\n'
-                outInfo += '====== formula 0 ======\n'
-                outInfo += '\n'
-                outInfo += f'{min_area=:.3f} (mm^2)\n'
-                outInfo += f'{max_1_area=:.3f} (mm^2)\n'
-                outInfo += f'{max_2_area=:.3f} (mm^2)\n'
-                outInfo += f'{normal_reference=:.3f} (mm^2)\n'
-                outInfo += '\n'
-                outInfo += f'stenosis : {stenosis_f0_percent_str}%'
-
-                print('===== Report stenosis result =====')
-                print(outInfo)
-
-                slicer.util.infoDisplay(outInfo, self.moduleName)
-            else:
-                e = f'maximum area is zero {min_area=}, {max_area=}'
-                slicer.util.errorDisplay('Failed to compute stenosis: ' + str(e))
+            outInfo = self.createStenosisReport(outTableNode)
+            slicer.util.infoDisplay(outInfo, self.moduleName)
 
 
 #
