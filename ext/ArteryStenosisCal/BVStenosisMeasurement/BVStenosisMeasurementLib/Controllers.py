@@ -99,6 +99,7 @@ class CreateGuideLineController:
                     logging.debug(f'formatted: {pathKJI}')
                     self._createLinearCurve(pathKJI, guideLineNode, ijk2rasMat)
                     # MRMLUtils.createCurve(pathKJI, self.guideLineNode, self.ijk2rasMat, 0.5)
+                    slicer.modules.markups.logic().SetAllControlPointsVisibility(guideLineNode, False)
 
                     if jumpSliceOnComplete:
                         guideLineSize = guideLineNode.GetNumberOfControlPoints()
