@@ -957,12 +957,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             label=labelMapNode,
         )
 
-        with slicer.util.tryWithErrorDisplay(
-            'Failed to compute cross-section area.', waitCursor=True
-        ):
-            outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
-            outInfo = self.createStenosisReport(outTableNode)
-            slicer.util.infoDisplay(outInfo, self.moduleName)
+        outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
+        outInfo = self.createStenosisReport(outTableNode)
+        slicer.util.infoDisplay(outInfo, self.moduleName)
 
 
 #
