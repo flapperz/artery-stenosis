@@ -592,7 +592,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         rasHomo[:, :3] = rasArray
         return (np.round(ras2ijkMat @ rasHomo.T).astype(np.uint16).T)[:, :3]
 
-    def createStenosisReport(self, tableNode):
+    def createStenosisReport(self, tableNode, reportTableNode):
 
         cross_sec_area = slicer.util.arrayFromTableColumn(
             tableNode, 'Cross-section area'
@@ -615,8 +615,19 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         min_area_index = np.argmin(cross_sec_area)
         min_area = np.min(cross_sec_area)
         max_area = np.max(cross_sec_area)  # avg( max(proximal), max(distal) )
-        max_1_area = np.max(cross_sec_area[:min_area_index])
-        max_2_area = np.max(cross_sec_area[min_area_index:])
+        left_to_min = cross_sec_area[:min_area_index]
+
+        max_1_area = max_area
+        # For case min_area_index is at edge
+        if left_to_min:
+            max_1_area = np.max(left_to_min)
+
+        right_to_min = cross_sec_area[min_area_index:]
+        max_2_area = max_area
+        # For case min_area_index is at edge
+        if right_to_min:
+            max_2_area = np.max(right_to_min)
+
         normal_reference = (max_1_area + max_2_area) * 0.5
 
         if max_area and normal_reference:
@@ -705,7 +716,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         # Create vesselness volume
         timer.start('Create Vesselness volume')
 
-        # TODO: sampling from curve is better ?
         guideSeedControlPoints = slicer.util.arrayFromMarkupsControlPoints(guideLineNode)
 
         guideSeedNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsFiducialNode')
