@@ -891,8 +891,6 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         if oldSegmentID:
             segmentationNode.RemoveSegment(oldSegmentID)
 
-        lastSegmentID = ""
-
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
             labelMapNode, segmentationNode
         )
@@ -1046,9 +1044,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         del segmentEditorWidget
         # TODO: bring back when finish
         segmentationNode.RemoveSegment(paddedSegmentID)
-        # slicer.mrmlScene.RemoveNode(vesselnessVolumeNode)
-        # slicer.mrmlScene.RemoveNode(labelMapNode)
-        # slicer.mrmlScene.RemoveNode(patchVolumeNode)
+        slicer.mrmlScene.RemoveNode(vesselnessVolumeNode)
+        slicer.mrmlScene.RemoveNode(labelMapNode)
+        slicer.mrmlScene.RemoveNode(patchVolumeNode)
         slicer.util.setSliceViewerLayers(
             background=inputVolumeNode,
             foreground=vesselnessVolumeNode,
