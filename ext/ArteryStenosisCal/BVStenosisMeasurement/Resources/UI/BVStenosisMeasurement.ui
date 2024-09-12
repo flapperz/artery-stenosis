@@ -123,7 +123,48 @@
      <property name="text">
       <string>Outputs</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_4"/>
+     <layout class="QFormLayout" name="formLayout_4">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Report table:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="qMRMLNodeComboBox" name="reportTable">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="nodeTypes">
+         <stringlist notr="true">
+          <string>vtkMRMLTableNode</string>
+         </stringlist>
+        </property>
+        <property name="hideChildNodeTypes">
+         <stringlist notr="true"/>
+        </property>
+        <property name="baseName">
+         <string>BV_REPORT</string>
+        </property>
+        <property name="noneEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="editEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="interactionNodeSingletonTag">
+         <string notr="true"/>
+        </property>
+        <property name="SlicerParameterName" stdset="0">
+         <string>reportTable</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
    <item>
@@ -254,6 +295,9 @@
         </property>
         <property name="baseName">
          <string/>
+        </property>
+        <property name="noneEnabled">
+         <bool>false</bool>
         </property>
         <property name="addEnabled">
          <bool>false</bool>
@@ -456,6 +500,22 @@
     <hint type="destinationlabel">
      <x>215</x>
      <y>339</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>BVStenosisMeasurement</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>reportTable</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>162</x>
+     <y>247</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>203</x>
+     <y>259</y>
     </hint>
    </hints>
   </connection>

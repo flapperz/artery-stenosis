@@ -19,6 +19,7 @@ from slicer import (
     vtkMRMLMarkupsROINode,
     vtkMRMLScalarVolumeNode,
     vtkMRMLSegmentationNode,
+    vtkMRMLTableNode,
 )
 from slicer.parameterNodeWrapper import (
     WithinRange,
@@ -92,6 +93,7 @@ class BVStenosisMeasurementParameterNode:
     guideLine: vtkMRMLMarkupsCurveNode
     segmentation: vtkMRMLSegmentationNode
     costVolume: vtkMRMLScalarVolumeNode
+    reportTable: vtkMRMLTableNode
 
 
 #
@@ -353,13 +355,18 @@ class BVStenosisMeasurementWidget(ScriptedLoadableModuleWidget, VTKObservationMi
                 self._parameterNode.segmentation = slicer.mrmlScene.AddNewNodeByClass(
                     'vtkMRMLSegmentationNode'
                 )
+            if not self._parameterNode.reportTable:
+                self._parameterNode.reportTable = slicer.mrmlScene.AddNewNodeByClass(
+                    'vtkMRMLTableNode'
+                )
 
             self.logic.process(
                 self._parameterNode.inputVolume,
                 self._parameterNode.costVolume,
                 self._parameterNode.markers,
                 self._parameterNode.guideLine,
-                self._parameterNode.segmentation
+                self._parameterNode.segmentation,
+                self._parameterNode.reportTable
             )
 
     def onAdjustVolumeDisplayButtonClicked(self) -> None:
@@ -646,7 +653,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         costVolumeNode: vtkMRMLScalarVolumeNode,
         markersNode: vtkMRMLMarkupsFiducialNode,
         guideLineNode: vtkMRMLMarkupsCurveNode,
-        segmentationNode: vtkMRMLSegmentationNode
+        segmentationNode: vtkMRMLSegmentationNode,
+        reportTable: vtkMRMLTableNode
     ) -> None:
         """
         Run the processing algorithm.
@@ -950,6 +958,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         del segmentEditorWidget
         # TODO: bring back when finish
         # segmentationNode.RemoveSegment(paddedSegmentID)
+        # slicer.mrmlScene.RemoveNode(vesselnessVolumeNode)
+        # slicer.mrmlScene.RemoveNode(labelMapNode)
         # slicer.mrmlScene.RemoveNode(patchVolumeNode)
         slicer.util.setSliceViewerLayers(
             background=inputVolumeNode,
