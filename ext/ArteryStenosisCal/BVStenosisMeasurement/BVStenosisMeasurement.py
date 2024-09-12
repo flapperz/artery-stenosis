@@ -592,7 +592,48 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         rasHomo[:, :3] = rasArray
         return (np.round(ras2ijkMat @ rasHomo.T).astype(np.uint16).T)[:, :3]
 
-    def createStenosisReport(self, tableNode, reportTableNode):
+    def handleReportTable(self, rowData, reportTableNode, markersName):
+        columnName = [
+            'name',
+            'length',
+            'min-area',
+            'max-area',
+            'stenosis',
+            'min-area',
+            'max-area1',
+            'max-area2',
+            'normal-reference',
+            'stenosis-formula0',
+            'minidx',
+            'maxidx',
+            'max1idx',
+            'max2id',
+        ]
+
+        toAddData = [markersName] + rowData
+        # if table is empty
+        if not reportTableNode.GetNumberOfRows():
+            slicer.util.updateTableFromArray(
+                reportTableNode, np.zeros((1, len(toAddData))), columnName
+            )
+
+        newRowIndex = reportTableNode.AddEmptyRow()
+        rowVtk = vtk.vtkVariantArray()
+        for cell in toAddData:
+            rowVtk.InsertNextValue(vtk.vtkVariant(cell))
+        reportTableNode.GetTable().SetRow(newRowIndex, rowVtk)
+
+    def getFirstAreaDecline(self, array):
+        # (N,) array
+        arraySize = len(array)
+        for i in range(1, arraySize):
+            prev = array[i-1]
+            val = array[i]
+            if val < prev:
+                return i
+        return 0
+
+    def createStenosisReport(self, tableNode):
 
         cross_sec_area = slicer.util.arrayFromTableColumn(
             tableNode, 'Cross-section area'
@@ -605,28 +646,33 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             e = 'Vessel too short'
             raise Exception(e)
 
-        # trim_length = 2.5
-        # min_trim_index = np.arange(len(distances))[distances > trim_length][0]
-        # max_trim_index = np.arange(len(distances))[
-        #     distances > max_distances - trim_length
-        # ][0]
-        # trim_cross_sec_area = cross_sec_area[min_trim_index:max_trim_index]
+        left_trim_index = self.getFirstAreaDecline(cross_sec_area)
+        right_trim_exclude_index = len(cross_sec_area) - self.getFirstAreaDecline(cross_sec_area[::-1])
+        trim_cross_sec_area = cross_sec_area[left_trim_index:right_trim_exclude_index]
 
-        min_area_index = np.argmin(cross_sec_area)
-        min_area = np.min(cross_sec_area)
-        max_area = np.max(cross_sec_area)  # avg( max(proximal), max(distal) )
+        # min_area_index = np.argmin(cross_sec_area)
+        min_area_index = np.argmin(trim_cross_sec_area) + left_trim_index
+        min_area = cross_sec_area[min_area_index]
+        max_area_index = np.argmax(cross_sec_area)
+        max_area = cross_sec_area[max_area_index]  # avg( max(proximal), max(distal) )
 
         max_1_area = max_area
+        max_1_area_index = None
         # For case min_area_index is at edge
         left_to_min = cross_sec_area[:min_area_index]
-        if left_to_min:
-            max_1_area = np.max(left_to_min)
+        if len(left_to_min):
+            max_1_area_index = np.argmax(left_to_min)
+            max_1_area = cross_sec_area[max_1_area_index]
+
 
         max_2_area = max_area
+        max_2_area_index = None
         # For case min_area_index is at edge
         right_to_min = cross_sec_area[min_area_index:]
-        if right_to_min:
-            max_2_area = np.max(right_to_min)
+        if len(right_to_min):
+            max_2_area_index = np.argmax(right_to_min) + min_area_index
+            max_2_area = cross_sec_area[max_2_area_index]
+
 
         normal_reference = (max_1_area + max_2_area) * 0.5
 
@@ -636,6 +682,22 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
             stenosis_percent_str = f'{stenosis*100:.3f}'
             stenosis_f0_percent_str = f'{stenosis_f0*100:.3f}'
+
+            rowData = [
+                distances,
+                min_area,
+                max_area,
+                stenosis,
+                min_area,
+                max_1_area,
+                max_2_area,
+                normal_reference,
+                stenosis_f0,
+                min_area_index,
+                max_area_index,
+                max_1_area_index,
+                max_2_area_index
+            ]
 
             outInfo = 'Result!\n'
             outInfo += '\n'
@@ -660,7 +722,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
 
             print('===== Report stenosis result =====')
             print(outInfo)
-            return outInfo
+            return outInfo, rowData
 
         raise Exception('max_area is 0')
 
@@ -672,7 +734,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         markersNode: vtkMRMLMarkupsFiducialNode,
         guideLineNode: vtkMRMLMarkupsCurveNode,
         segmentationNode: vtkMRMLSegmentationNode,
-        reportTable: vtkMRMLTableNode
+        reportTableNode: vtkMRMLTableNode
     ) -> None:
         """
         Run the processing algorithm.
@@ -994,8 +1056,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         )
 
         outTableNode = crossSecWidget.ui.outputTableSelector.currentNode()
-        outInfo = self.createStenosisReport(outTableNode)
+        outInfo, rowData = self.createStenosisReport(outTableNode)
         slicer.util.infoDisplay(outInfo, self.moduleName)
+        # self.handleReportTable(rowData, reportTableNode, markersName)
 
 
 #
