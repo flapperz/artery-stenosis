@@ -812,10 +812,20 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         segmentEditorWidget.setSourceVolumeNode(inputVolumeNode)
 
         # Convert label map to segmentation
+
+        vesselSegmentName = f'{markersName}'
+        # Replace old segmentation
+        oldSegmentID = segmentationNode.GetSegmentation().GetSegmentIdBySegmentName(vesselSegmentName)
+        if oldSegmentID:
+            segmentationNode.RemoveSegment(oldSegmentID)
+
+        lastSegmentID = ""
+
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(
             labelMapNode, segmentationNode
         )
         vesselSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[-1]
+        segmentationNode.GetSegmentation().GetSegment(vesselSegmentID).SetName(vesselSegmentName)
 
         timer.stop()
 
@@ -843,9 +853,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             True,
         )
         slicer.modules.segmentations.logic().ImportModelToSegmentationNode(
-            paddingCoreModelNode, segmentationNode, vesselSegmentID
+            paddingCoreModelNode, segmentationNode
         )
-        paddingCoreSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[0]
+        paddingCoreSegmentID = segmentationNode.GetSegmentation().GetSegmentIDs()[-1]
         slicer.mrmlScene.RemoveNode(paddingCoreModelNode)
 
         paddedSegmentID = segmentationNode.GetSegmentation().AddEmptySegment()
@@ -869,8 +879,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         effect.self().onApply()
 
         # no use anymore
-        # TODO: bring back when finish
-        # segmentationNode.RemoveSegment(paddingCoreSegmentID)
+        segmentationNode.RemoveSegment(paddingCoreSegmentID)
 
         timer.stop()
 
@@ -964,7 +973,7 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.mrmlScene.RemoveNode(endPointsNode)
         del segmentEditorWidget
         # TODO: bring back when finish
-        # segmentationNode.RemoveSegment(paddedSegmentID)
+        segmentationNode.RemoveSegment(paddedSegmentID)
         # slicer.mrmlScene.RemoveNode(vesselnessVolumeNode)
         # slicer.mrmlScene.RemoveNode(labelMapNode)
         # slicer.mrmlScene.RemoveNode(patchVolumeNode)
