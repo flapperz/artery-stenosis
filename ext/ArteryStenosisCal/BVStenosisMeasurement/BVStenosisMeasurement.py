@@ -813,9 +813,9 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         slicer.modules.markupstomodel.logic().UpdateOutputCurveModel(
             guideLineNode,
             paddingCoreModelNode,
-            0,  # Linear, CardinalSpline, KochanekSpline, Polynomial
+            3,  # Linear, CardinalSpline, KochanekSpline, Polynomial
             False,  # tube loop
-            0.5,  # tube Radius
+            0.4,  # tube Radius
             8,  # tubeNumber of sides
             1,  # tube segment between control point
             True,  # clean markups ?
@@ -823,8 +823,8 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
             0,  # point parameter type
             None,
             1,  # global least square, moving least square
-            0.5,  # sample width
-            0,  # weight: Rectangular = 0, Triangular, Cosine, Gaussian,
+            0.12,  # sample width
+            3,  # weight: Rectangular = 0, Triangular, Cosine, Gaussian,
             True,
         )
         slicer.modules.segmentations.logic().ImportModelToSegmentationNode(
