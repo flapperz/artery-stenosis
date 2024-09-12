@@ -615,16 +615,16 @@ class BVStenosisMeasurementLogic(ScriptedLoadableModuleLogic):
         min_area_index = np.argmin(cross_sec_area)
         min_area = np.min(cross_sec_area)
         max_area = np.max(cross_sec_area)  # avg( max(proximal), max(distal) )
-        left_to_min = cross_sec_area[:min_area_index]
 
         max_1_area = max_area
         # For case min_area_index is at edge
+        left_to_min = cross_sec_area[:min_area_index]
         if left_to_min:
             max_1_area = np.max(left_to_min)
 
-        right_to_min = cross_sec_area[min_area_index:]
         max_2_area = max_area
         # For case min_area_index is at edge
+        right_to_min = cross_sec_area[min_area_index:]
         if right_to_min:
             max_2_area = np.max(right_to_min)
 
